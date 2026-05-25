@@ -117,20 +117,31 @@ function CrosshairIcon() {
   );
 }
 
+type MarkerOverlayEntry = {
+  id: string;
+  el: HTMLElement;
+  overlay: any;
+  onClick: (e: Event) => void;
+};
+
 export default function KakaoMap({ locations }: { locations: LocationWithStats[] }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const myPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const myMarkerRef = useRef<any>(null);
-  const markerElsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const myMarkerOverlayRef = useRef<any>(null);
   const myMarkerElRef = useRef<HTMLElement | null>(null);
+  const markerOverlaysRef = useRef<MarkerOverlayEntry[]>([]);
+  const mapClickListenerRef = useRef<(() => void) | null>(null);
   const locateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<LocationWithStats | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [locateState, setLocateState] = useState<LocateState>("idle");
 
+  // === Effect A: 지도 초기화 (마운트 1회) =================================
+  // - Kakao SDK 로드 → Map 생성 → 지도 click 리스너 → 현재 위치 1회 조회
+  // - cleanup에서 listener 제거, 현재 위치 overlay setMap(null), mapRef 초기화
   useEffect(() => {
     const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
     if (!appKey) {
@@ -144,62 +155,27 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         if (cancelled || !containerRef.current) return;
         const { kakao } = window;
 
-        const initialCenter = locations[0]
-          ? new kakao.maps.LatLng(locations[0].lat, locations[0].lng)
-          : new kakao.maps.LatLng(37.5665, 126.978);
-
-        const map = new kakao.maps.Map(containerRef.current, {
-          center: initialCenter,
-          level: 5,
-        });
-        mapRef.current = map;
-
-        markerElsRef.current.clear();
-        locations.forEach((loc) => {
-          const tier = tierOf(loc.recordCount);
-          const el = document.createElement("div");
-          el.className = "gj-marker";
-          el.dataset.tier = tier;
-          el.dataset.selected = "false";
-          const chipHtml =
-            loc.recordCount > 0
-              ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
-              : `<span class="gj-marker-chip" data-variant="new" aria-label="신규">NEW</span>`;
-          el.innerHTML = `
-            <div class="gj-marker-icon" aria-label="${escapeHtml(loc.name)}">
-              ${PULLUP_SVG}
-              ${chipHtml}
-              <span class="gj-marker-icon-ring"></span>
-            </div>
-            <div class="gj-marker-base"></div>
-          `;
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-            setSelected(loc);
-            map.panTo(new kakao.maps.LatLng(loc.lat, loc.lng));
+        // 이미 만든 맵이 있으면 그대로 재사용 (StrictMode 등에서 안전)
+        if (!mapRef.current) {
+          const map = new kakao.maps.Map(containerRef.current, {
+            center: new kakao.maps.LatLng(37.5665, 126.978),
+            level: 5,
           });
+          mapRef.current = map;
 
-          markerElsRef.current.set(loc.id, el);
+          const onMapClick = () => setSelected(null);
+          kakao.maps.event.addListener(map, "click", onMapClick);
+          mapClickListenerRef.current = onMapClick;
+        }
 
-          const overlay = new kakao.maps.CustomOverlay({
-            position: new kakao.maps.LatLng(loc.lat, loc.lng),
-            content: el,
-            yAnchor: 1,
-            xAnchor: 0.5,
-            clickable: true,
-          });
-          overlay.setMap(map);
-        });
-
-        // 지도 빈 곳 탭 → 시트 닫기
-        kakao.maps.event.addListener(map, "click", () => setSelected(null));
-
-        // 현재 위치
-        if (navigator.geolocation) {
+        // 현재 위치 1회만 (이미 받았으면 스킵)
+        if (!myMarkerOverlayRef.current && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
+              if (cancelled || !mapRef.current) return;
               const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
               myPosRef.current = here;
+
               const meEl = document.createElement("div");
               meEl.className = "gj-here";
               meEl.innerHTML = `
@@ -207,15 +183,15 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
                 <span class="gj-here-pulse gj-here-pulse-2"></span>
                 <span class="gj-here-core"></span>
               `;
-              const overlay = new kakao.maps.CustomOverlay({
-                position: new kakao.maps.LatLng(here.lat, here.lng),
+              const overlay = new window.kakao.maps.CustomOverlay({
+                position: new window.kakao.maps.LatLng(here.lat, here.lng),
                 content: meEl,
                 yAnchor: 0.5,
                 xAnchor: 0.5,
                 zIndex: 100,
               });
-              overlay.setMap(map);
-              myMarkerRef.current = overlay;
+              overlay.setMap(mapRef.current);
+              myMarkerOverlayRef.current = overlay;
               myMarkerElRef.current = meEl;
             },
             () => {},
@@ -223,19 +199,120 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
           );
         }
 
-        setReady(true);
+        setMapReady(true);
       })
       .catch((e) => setError(e.message ?? "지도 로드 실패"));
 
     return () => {
       cancelled = true;
-      markerElsRef.current.clear();
-    };
-  }, [locations]);
 
-  // selected ↔ marker DOM 동기화 (vanilla 마커라 별도 effect 필요)
+      // 지도 click 리스너 명시적 제거
+      if (mapRef.current && window.kakao && mapClickListenerRef.current) {
+        window.kakao.maps.event.removeListener(
+          mapRef.current,
+          "click",
+          mapClickListenerRef.current,
+        );
+        mapClickListenerRef.current = null;
+      }
+
+      // 현재 위치 overlay 분리
+      if (myMarkerOverlayRef.current) {
+        myMarkerOverlayRef.current.setMap(null);
+        myMarkerOverlayRef.current = null;
+      }
+      myMarkerElRef.current = null;
+
+      // 카카오 Map은 별도 dispose 메서드가 없음 — 컨테이너 정리에 맡김
+      mapRef.current = null;
+      setMapReady(false);
+    };
+  }, []);
+
+  // === Effect B: locations 마커 attach/detach =================================
+  // - locations 또는 mapReady 변경 시 기존 overlay 전부 setMap(null)로 제거 후 새로 생성
+  // - cleanup에서도 동일하게 정리 → 누적 방지의 핵심
   useEffect(() => {
-    markerElsRef.current.forEach((el, id) => {
+    if (!mapReady || !mapRef.current || !window.kakao) return;
+    const { kakao } = window;
+    const map = mapRef.current;
+
+    // 이전 오버레이 잔존분 완전 분리 (effect 재실행 첫 진입 시)
+    markerOverlaysRef.current.forEach(({ overlay, el, onClick }) => {
+      overlay.setMap(null);
+      el.removeEventListener("click", onClick);
+    });
+    markerOverlaysRef.current = [];
+
+    const next: MarkerOverlayEntry[] = [];
+
+    locations.forEach((loc) => {
+      const tier = tierOf(loc.recordCount);
+      const el = document.createElement("div");
+      el.className = "gj-marker";
+      el.dataset.tier = tier;
+      el.dataset.selected = "false";
+      const chipHtml =
+        loc.recordCount > 0
+          ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
+          : `<span class="gj-marker-chip" data-variant="new" aria-label="신규">NEW</span>`;
+      el.innerHTML = `
+        <div class="gj-marker-icon" aria-label="${escapeHtml(loc.name)}">
+          ${PULLUP_SVG}
+          ${chipHtml}
+          <span class="gj-marker-icon-ring"></span>
+        </div>
+        <div class="gj-marker-base"></div>
+      `;
+      const onClick = (e: Event) => {
+        e.stopPropagation();
+        setSelected(loc);
+        map.panTo(new kakao.maps.LatLng(loc.lat, loc.lng));
+      };
+      el.addEventListener("click", onClick);
+
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(loc.lat, loc.lng),
+        content: el,
+        yAnchor: 1,
+        xAnchor: 0.5,
+        clickable: true,
+      });
+      overlay.setMap(map);
+
+      next.push({ id: loc.id, el, overlay, onClick });
+    });
+
+    markerOverlaysRef.current = next;
+
+    // 새로 만든 마커들에 현재 selected 상태 즉시 반영
+    next.forEach(({ id, el }) => {
+      el.dataset.selected = id === selected?.id ? "true" : "false";
+    });
+
+    // 첫 마커 위치로 중심 1회 (사용자 위치 없을 때만)
+    if (locations[0] && !myPosRef.current) {
+      map.setCenter(new kakao.maps.LatLng(locations[0].lat, locations[0].lng));
+    }
+
+    return () => {
+      // unmount 또는 deps 변경 직전 — 만들었던 next 배열 분리
+      next.forEach(({ overlay, el, onClick }) => {
+        overlay.setMap(null);
+        el.removeEventListener("click", onClick);
+      });
+      // 동일한 참조면 ref도 비움 (StrictMode 안전)
+      if (markerOverlaysRef.current === next) {
+        markerOverlaysRef.current = [];
+      }
+    };
+    // selected는 의도적으로 deps에서 제외 — 마커 재생성 트리거하면 안 됨
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, locations]);
+
+  // === Effect C: selected → DOM data-selected 동기화 =========================
+  useEffect(() => {
+    markerOverlaysRef.current.forEach(({ id, el }) => {
       el.dataset.selected = id === selected?.id ? "true" : "false";
     });
   }, [selected]);
@@ -384,7 +461,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       </button>
 
       {/* 안내 hint */}
-      {!selected && ready && (
+      {!selected && mapReady && (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
           <div className="arcade-card bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
             ▼ 마커를 눌러 STAGE INFO 열기
