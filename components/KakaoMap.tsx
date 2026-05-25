@@ -235,16 +235,16 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       : null;
 
   return (
-    <div className="relative h-[calc(100dvh-100px)] w-full overflow-hidden bg-arcade-bg">
-      {/* MAP */}
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className="relative isolate h-[calc(100dvh-100px)] w-full overflow-hidden bg-arcade-bg">
+      {/* MAP — z-0으로 카카오 내부 스택 컨텍스트 격리 */}
+      <div ref={containerRef} className="absolute inset-0 z-0" />
 
       {/* 비네트 */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(10,10,15,0.55)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(10,10,15,0.55)_100%)]" />
 
       {/* 스캔라인 (인디게임 톤) */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 z-10 opacity-[0.06] mix-blend-overlay"
         style={{
           backgroundImage:
             "repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0 1px, transparent 1px 3px)",
@@ -252,7 +252,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       />
 
       {/* 상단 HUD */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 px-3 pt-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-3">
         <div className="pointer-events-auto grid grid-cols-2 gap-2">
           <div className="rounded border border-arcade-border bg-arcade-panel/85 px-3 py-2 backdrop-blur">
             <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
@@ -279,14 +279,14 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       <button
         onClick={recenter}
         aria-label="현재 위치로 이동"
-        className="absolute right-3 top-[88px] flex h-11 w-11 items-center justify-center rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon shadow-[0_0_10px_rgba(57,255,20,0.35)] backdrop-blur active:translate-y-px"
+        className="absolute right-3 top-[88px] z-20 flex h-11 w-11 items-center justify-center rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon shadow-[0_0_10px_rgba(57,255,20,0.35)] backdrop-blur active:translate-y-px"
       >
         <span className="text-base leading-none">◉</span>
       </button>
 
       {/* 안내 hint */}
       {!selected && ready && (
-        <div className="pointer-events-none absolute inset-x-3 bottom-3">
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
           <div className="rounded border border-arcade-border bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-wider text-zinc-400 backdrop-blur">
             ▼ 마커를 눌러 STAGE INFO 열기
           </div>
