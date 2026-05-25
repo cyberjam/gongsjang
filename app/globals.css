@@ -181,101 +181,166 @@ body {
 .arcade-rank-2 { color: #d6d6d6; }
 .arcade-rank-3 { color: #cd7f32; }
 
-/* === Map markers (Pokemon GO + 오락실 스테이지) === */
+/* === Map markers — 철봉 픽토그램 + 네온 프레임 === */
 .gj-marker {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform 0.12s ease;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  transform-origin: bottom center;
+  transition: transform 0.18s ease, filter 0.18s ease;
+  --tier-color: #ffd23f;
+  --tier-rgb: 255, 210, 63;
 }
-.gj-marker:active { transform: translateY(1px) scale(0.97); }
+.gj-marker[data-tier="new"]    { --tier-color: #39ff14; --tier-rgb: 57, 255, 20; }
+.gj-marker[data-tier="hot"]    { --tier-color: #ff3864; --tier-rgb: 255, 56, 100; }
 
-.gj-marker-label {
+.gj-marker:active { transform: scale(0.96); }
+
+/* 라벨 콜아웃 */
+.gj-marker-card {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  margin-bottom: 5px;
-  background: rgba(21, 21, 31, 0.95);
+  margin-bottom: 4px;
+  background: rgba(21, 21, 31, 0.96);
   border: 1px solid #2a2a3a;
   border-radius: 3px;
   font-size: 10px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   color: #f4f4f5;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
 }
-.gj-marker-name { color: #f4f4f5; }
-.gj-marker-count { color: #ffd23f; font-weight: 700; }
-.gj-marker-new {
-  color: #39ff14;
+.gj-marker-name { color: #f4f4f5; font-weight: 600; }
+.gj-marker-score { color: var(--tier-color); font-weight: 700; }
+.gj-marker-new-tag {
+  color: var(--tier-color);
   font-weight: 700;
   font-size: 9px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
-.gj-marker[data-tier="active"] .gj-marker-label { border-color: #ffd23f; }
-.gj-marker[data-tier="hot"] .gj-marker-label {
-  border-color: #ff3864;
-  box-shadow: 0 2px 12px rgba(255, 56, 100, 0.35), 0 0 0 1px rgba(255, 56, 100, 0.2);
+.gj-marker[data-tier="active"] .gj-marker-card { border-color: var(--tier-color); }
+.gj-marker[data-tier="hot"] .gj-marker-card {
+  border-color: var(--tier-color);
+  color: var(--tier-color);
+  box-shadow:
+    0 2px 12px rgba(var(--tier-rgb), 0.35),
+    0 0 0 1px rgba(var(--tier-rgb), 0.2);
 }
-.gj-marker[data-tier="hot"] .gj-marker-name { color: #ff3864; }
-.gj-marker[data-tier="hot"] .gj-marker-count { color: #ff3864; }
+.gj-marker[data-tier="hot"] .gj-marker-name { color: var(--tier-color); }
 
-.gj-marker-pin {
+/* 철봉 아이콘 (Π) + 네온 프레임 */
+.gj-marker-icon {
   position: relative;
-  display: inline-flex;
-  width: 18px;
-  height: 18px;
+  width: 36px;
+  height: 36px;
+  display: flex;
   align-items: center;
   justify-content: center;
-}
-.gj-marker-ring {
-  position: absolute;
-  inset: 0;
-  border: 2px solid #ffd23f;
-  border-radius: 50%;
+  background: rgba(21, 21, 31, 0.95);
+  border: 2px solid var(--tier-color);
+  border-radius: 5px;
+  color: var(--tier-color);
   box-shadow:
-    0 0 8px rgba(255, 210, 63, 0.6),
-    inset 0 0 4px rgba(255, 210, 63, 0.35);
+    0 0 10px rgba(var(--tier-rgb), 0.55),
+    inset 0 0 5px rgba(var(--tier-rgb), 0.2),
+    0 4px 10px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-width 0.18s;
 }
-.gj-marker-core {
-  width: 6px;
-  height: 6px;
-  background: #ffd23f;
-  border-radius: 50%;
-  box-shadow: 0 0 6px rgba(255, 210, 63, 0.9);
-}
-.gj-marker[data-tier="new"] .gj-marker-ring {
-  border-color: #39ff14;
-  box-shadow:
-    0 0 6px rgba(57, 255, 20, 0.55),
-    inset 0 0 4px rgba(57, 255, 20, 0.3);
-}
-.gj-marker[data-tier="new"] .gj-marker-core {
-  background: #39ff14;
-  box-shadow: 0 0 6px rgba(57, 255, 20, 0.85);
-}
-.gj-marker[data-tier="hot"] .gj-marker-ring {
-  border-color: #ff3864;
-  box-shadow:
-    0 0 14px rgba(255, 56, 100, 0.75),
-    inset 0 0 4px rgba(255, 56, 100, 0.4);
-  animation: gj-pulse-pin 1.4s ease-in-out infinite;
-}
-.gj-marker[data-tier="hot"] .gj-marker-core {
-  background: #ff3864;
-  box-shadow: 0 0 8px rgba(255, 56, 100, 0.95);
+.gj-marker-icon svg {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 4px rgba(var(--tier-rgb), 0.85));
 }
 
-@keyframes gj-pulse-pin {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.22); opacity: 0.75; }
+/* 코너 픽셀 (프레임 강조) */
+.gj-marker-icon::before,
+.gj-marker-icon::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--tier-color);
+  box-shadow: 0 0 4px rgba(var(--tier-rgb), 0.9);
+}
+.gj-marker-icon::before { top: -2px; left: -2px; }
+.gj-marker-icon::after { bottom: -2px; right: -2px; }
+
+/* 지면 앵커 */
+.gj-marker-base {
+  margin-top: 3px;
+  width: 6px;
+  height: 6px;
+  background: var(--tier-color);
+  border-radius: 50%;
+  box-shadow:
+    0 0 8px rgba(var(--tier-rgb), 0.95),
+    0 0 0 2px rgba(10, 10, 15, 0.6);
+}
+
+/* HOT — 펄스 */
+.gj-marker[data-tier="hot"] .gj-marker-icon {
+  animation: gj-pulse-icon 1.6s ease-in-out infinite;
+}
+
+@keyframes gj-pulse-icon {
+  0%, 100% { transform: scale(1); }
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 16px rgba(var(--tier-rgb), 0.85),
+      inset 0 0 6px rgba(var(--tier-rgb), 0.35),
+      0 4px 14px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* SELECTED — 크게, 글로우 강, 외곽 펄스 링 */
+.gj-marker[data-selected="true"] {
+  transform: scale(1.18);
+  z-index: 10;
+  filter: brightness(1.1);
+}
+.gj-marker[data-selected="true"] .gj-marker-icon {
+  border-width: 3px;
+  box-shadow:
+    0 0 22px rgba(var(--tier-rgb), 0.9),
+    inset 0 0 8px rgba(var(--tier-rgb), 0.45),
+    0 6px 18px rgba(0, 0, 0, 0.7);
+}
+.gj-marker[data-selected="true"] .gj-marker-icon > svg {
+  filter: drop-shadow(0 0 6px rgba(var(--tier-rgb), 0.95));
+}
+.gj-marker[data-selected="true"] .gj-marker-card {
+  border-color: var(--tier-color);
+  box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.5);
+}
+/* 외곽 펄스 링 — selected에서만 */
+.gj-marker[data-selected="true"] .gj-marker-icon::before,
+.gj-marker[data-selected="true"] .gj-marker-icon::after {
+  width: 6px;
+  height: 6px;
+}
+.gj-marker-icon-ring {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid var(--tier-color);
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+}
+.gj-marker[data-selected="true"] .gj-marker-icon-ring {
+  animation: gj-selected-ring 1.4s ease-out infinite;
+}
+@keyframes gj-selected-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
 /* === Current location === */

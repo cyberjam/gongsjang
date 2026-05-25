@@ -87,12 +87,15 @@ function tierOf(count: number) {
   return "new" as const;
 }
 
+const PULLUP_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="6" x2="6" y2="22"/><line x1="18" y1="6" x2="18" y2="22"/></svg>`;
+
 export default function KakaoMap({ locations }: { locations: LocationWithStats[] }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const myPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const myMarkerRef = useRef<any>(null);
+  const markerElsRef = useRef<Map<string, HTMLElement>>(new Map());
   const [selected, setSelected] = useState<LocationWithStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -120,24 +123,27 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         });
         mapRef.current = map;
 
+        markerElsRef.current.clear();
         locations.forEach((loc) => {
           const tier = tierOf(loc.recordCount);
           const el = document.createElement("div");
           el.className = "gj-marker";
           el.dataset.tier = tier;
+          el.dataset.selected = "false";
           el.innerHTML = `
-            <div class="gj-marker-label">
+            <div class="gj-marker-card">
               <span class="gj-marker-name">${escapeHtml(loc.name)}</span>
               ${
                 loc.recordCount > 0
-                  ? `<span class="gj-marker-count">★${loc.recordCount}</span>`
-                  : `<span class="gj-marker-new">NEW</span>`
+                  ? `<span class="gj-marker-score">★${loc.recordCount}</span>`
+                  : `<span class="gj-marker-new-tag">NEW</span>`
               }
             </div>
-            <span class="gj-marker-pin">
-              <span class="gj-marker-ring"></span>
-              <span class="gj-marker-core"></span>
-            </span>
+            <div class="gj-marker-icon">
+              ${PULLUP_SVG}
+              <span class="gj-marker-icon-ring"></span>
+            </div>
+            <div class="gj-marker-base"></div>
           `;
           el.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -145,10 +151,13 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
             map.panTo(new kakao.maps.LatLng(loc.lat, loc.lng));
           });
 
+          markerElsRef.current.set(loc.id, el);
+
           const overlay = new kakao.maps.CustomOverlay({
             position: new kakao.maps.LatLng(loc.lat, loc.lng),
             content: el,
-            yAnchor: 1.1,
+            yAnchor: 1,
+            xAnchor: 0.5,
             clickable: true,
           });
           overlay.setMap(map);
@@ -191,8 +200,16 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
 
     return () => {
       cancelled = true;
+      markerElsRef.current.clear();
     };
   }, [locations]);
+
+  // selected ↔ marker DOM 동기화 (vanilla 마커라 별도 effect 필요)
+  useEffect(() => {
+    markerElsRef.current.forEach((el, id) => {
+      el.dataset.selected = id === selected?.id ? "true" : "false";
+    });
+  }, [selected]);
 
   const recenter = useCallback(() => {
     const map = mapRef.current;
