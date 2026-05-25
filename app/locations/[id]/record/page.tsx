@@ -18,15 +18,16 @@ export default async function RecordPage({ params }: { params: { id: string } })
   const loc = data as Location;
 
   return (
-    <div className="px-4 py-4">
+    <div className="arcade-fade-in px-4 py-4">
       <Link
         href={`/locations/${loc.id}`}
-        className="text-[11px] text-zinc-400 hover:text-arcade-accent"
+        className="inline-flex items-center gap-1 text-[10px] tracking-[0.2em] text-zinc-400 hover:text-arcade-accent"
       >
-        ← {loc.name}
+        <span>←</span>
+        <span className="truncate">{loc.name}</span>
       </Link>
 
-      <h1 className="mt-2 arcade-title text-base font-bold text-arcade-accent">
+      <h1 className="arcade-title mt-2 text-base font-bold text-arcade-accent">
         ENTER YOUR SCORE
       </h1>
       <p className="mb-4 text-[11px] text-zinc-400">

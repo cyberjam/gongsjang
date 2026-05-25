@@ -15,7 +15,7 @@ export default async function LocationsPage() {
   const locations: Location[] = data ?? [];
 
   return (
-    <div className="px-4 py-4">
+    <div className="arcade-fade-in px-4 py-4">
       <div className="mb-3 flex items-center justify-between">
         <h1 className="arcade-title text-base font-bold text-arcade-accent">
           STAGE SELECT
@@ -41,7 +41,7 @@ export default async function LocationsPage() {
             <li key={loc.id}>
               <Link
                 href={`/locations/${loc.id}`}
-                className="block rounded border border-arcade-border bg-arcade-panel p-3 transition hover:border-arcade-accent"
+                className="arcade-card-tap block p-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -50,7 +50,9 @@ export default async function LocationsPage() {
                       <div className="truncate text-[11px] text-zinc-400">{loc.address}</div>
                     )}
                   </div>
-                  <div className="shrink-0 text-[10px] text-arcade-accent">▶ PLAY</div>
+                  <div className="shrink-0 text-[10px] tracking-[0.2em] text-arcade-accent">
+                    ▶ PLAY
+                  </div>
                 </div>
                 {loc.description && (
                   <div className="mt-1 line-clamp-2 text-[11px] text-zinc-500">

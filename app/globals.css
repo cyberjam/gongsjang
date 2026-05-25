@@ -12,6 +12,136 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* === Base interaction polish === */
+@layer base {
+  button,
+  a,
+  [role="button"],
+  input,
+  textarea,
+  select,
+  label {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a[role="button"],
+  [role="button"] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #ffd23f;
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+}
+
+/* === Reusable arcade components === */
+@layer components {
+  .arcade-card-tap {
+    @apply relative rounded border border-arcade-border bg-arcade-panel transition duration-150 ease-out;
+  }
+  .arcade-card-tap:hover {
+    @apply border-arcade-accent/70;
+    box-shadow:
+      0 0 0 1px rgba(255, 210, 63, 0.08),
+      0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+  .arcade-card-tap:active {
+    transform: translateY(1px) scale(0.997);
+    transition-duration: 80ms;
+  }
+
+  .arcade-btn {
+    @apply relative inline-flex select-none items-center justify-center overflow-hidden transition duration-150 ease-out;
+  }
+  .arcade-btn:active {
+    transform: translateY(1px);
+    filter: brightness(0.96);
+    transition-duration: 70ms;
+  }
+  .arcade-btn:disabled,
+  .arcade-btn[aria-disabled="true"] {
+    @apply pointer-events-none opacity-50;
+  }
+
+  .arcade-btn-primary {
+    @apply arcade-btn rounded border-2 border-arcade-accent bg-arcade-accent font-bold text-arcade-bg;
+    box-shadow: 0 0 12px rgba(255, 210, 63, 0.35);
+  }
+  .arcade-btn-primary:hover {
+    box-shadow: 0 0 18px rgba(255, 210, 63, 0.55);
+  }
+  .arcade-btn-primary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.28) 50%,
+      transparent 65%
+    );
+    transform: translateX(-110%);
+    transition: transform 0.55s ease;
+  }
+  .arcade-btn-primary:hover::before {
+    transform: translateX(110%);
+  }
+
+  .arcade-btn-ghost {
+    @apply arcade-btn rounded border border-arcade-border bg-arcade-panel text-zinc-200;
+  }
+  .arcade-btn-ghost:hover {
+    @apply border-arcade-accent text-arcade-accent;
+    box-shadow: 0 0 10px rgba(255, 210, 63, 0.2);
+  }
+
+  .arcade-btn-neon {
+    @apply arcade-btn rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon;
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+  }
+  .arcade-btn-neon:hover {
+    box-shadow: 0 0 14px rgba(57, 255, 20, 0.55);
+  }
+
+  .arcade-chip {
+    @apply inline-flex select-none items-center rounded border px-2 py-0.5 text-[10px] font-bold tracking-[0.18em] transition;
+  }
+}
+
+/* === Utilities === */
+@layer utilities {
+  .arcade-fade-in {
+    animation: arcade-fade-in 0.25s ease-out both;
+  }
+  .arcade-press {
+    @apply transition duration-100 ease-out active:translate-y-px active:brightness-95;
+  }
+}
+
+@keyframes arcade-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* 오락실 점수판 느낌 */
 .arcade-title {
   letter-spacing: 0.08em;

@@ -101,7 +101,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
           기록 ({RECORD_TYPE_UNIT[type]})
         </label>
         <input
-          className="w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-lg font-bold tracking-wider"
+          className="w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-lg font-bold tracking-wider transition focus:border-arcade-accent focus:shadow-[0_0_12px_rgba(255,210,63,0.18)] focus:outline-none"
           type="number"
           inputMode="numeric"
           min={1}
@@ -129,9 +129,9 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-arcade-accent py-3 text-sm font-bold tracking-wider text-arcade-bg disabled:opacity-50"
+        className="arcade-btn-primary w-full py-3 text-sm tracking-[0.28em]"
       >
-        {loading ? "등록 중..." : "SUBMIT SCORE"}
+        {loading ? "등록 중..." : "▶ SUBMIT SCORE"}
       </button>
     </form>
   );

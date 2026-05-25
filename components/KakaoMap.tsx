@@ -279,7 +279,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       <button
         onClick={recenter}
         aria-label="현재 위치로 이동"
-        className="absolute right-3 top-[88px] z-20 flex h-11 w-11 items-center justify-center rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon shadow-[0_0_10px_rgba(57,255,20,0.35)] backdrop-blur active:translate-y-px"
+        className="arcade-btn-neon absolute right-3 top-[88px] z-20 h-11 w-11 backdrop-blur"
       >
         <span className="text-base leading-none">◉</span>
       </button>
@@ -355,7 +355,7 @@ function StageSheet({
           <button
             onClick={onClose}
             aria-label="닫기"
-            className="shrink-0 rounded border border-arcade-border px-2 py-1 text-xs text-zinc-400 hover:border-arcade-accent hover:text-arcade-accent"
+            className="arcade-btn-ghost shrink-0 px-2 py-1 text-xs"
           >
             ✕
           </button>
@@ -405,7 +405,7 @@ function StageSheet({
 
         <button
           onClick={onChallenge}
-          className="relative w-full overflow-hidden rounded border-2 border-arcade-accent bg-arcade-accent py-3 text-sm font-bold tracking-[0.24em] text-arcade-bg shadow-[0_0_14px_rgba(255,210,63,0.5)] active:translate-y-px"
+          className="arcade-btn-primary w-full py-3 text-sm tracking-[0.28em]"
         >
           ▶ ENTER STAGE
         </button>

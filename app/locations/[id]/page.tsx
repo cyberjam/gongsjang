@@ -50,7 +50,7 @@ export default async function LocationDetailPage({
   const totalChallenges = records.length;
 
   return (
-    <div className="px-4 pb-8 pt-3">
+    <div className="arcade-fade-in px-4 pb-8 pt-3">
       <Link
         href="/locations"
         className="inline-flex items-center gap-1 text-[10px] tracking-[0.2em] text-zinc-400 hover:text-arcade-accent"
@@ -112,7 +112,7 @@ export default async function LocationDetailPage({
       {/* CTA (보스 유무에 따라 카피 변경) */}
       <Link
         href={`/locations/${loc.id}/record`}
-        className="mt-4 block w-full overflow-hidden rounded border-2 border-arcade-accent bg-arcade-accent py-3 text-center text-arcade-bg shadow-[0_0_14px_rgba(255,210,63,0.5)] transition active:translate-y-px"
+        className="arcade-btn-primary mt-4 w-full flex-col py-3 text-center"
       >
         <span className="block text-sm font-black tracking-[0.28em]">
           {boss ? "▶ 보스 도전" : "▶ 첫 전설이 되어라"}

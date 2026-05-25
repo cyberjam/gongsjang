@@ -63,18 +63,18 @@ export default function AddLocationButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded border border-arcade-accent px-2 py-1 text-[11px] text-arcade-accent hover:bg-arcade-accent hover:text-arcade-bg"
+        className="arcade-btn rounded border border-arcade-accent px-2.5 py-1 text-[11px] tracking-[0.15em] text-arcade-accent hover:bg-arcade-accent hover:text-arcade-bg hover:shadow-[0_0_12px_rgba(255,210,63,0.35)]"
       >
         + 철봉 추가
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-30 flex items-end justify-center bg-black/70 sm:items-center"
+          className="fixed inset-0 z-30 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-t-xl border border-arcade-border bg-arcade-panel p-4 sm:rounded-xl"
+            className="w-full max-w-md animate-[gj-slide-up_0.22s_ease-out] rounded-t border-t-2 border-arcade-accent bg-arcade-panel p-4 shadow-[0_-8px_24px_rgba(255,210,63,0.18)] sm:rounded sm:border-2"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 text-sm font-bold text-arcade-accent">새 스테이지 등록</div>
@@ -108,7 +108,7 @@ export default function AddLocationButton() {
               <button
                 onClick={pickCurrentLocation}
                 type="button"
-                className="rounded border border-arcade-border px-2 py-1 text-[11px] hover:border-arcade-accent"
+                className="arcade-btn-ghost px-2.5 py-1 text-[11px]"
               >
                 현재 위치 가져오기
               </button>
@@ -126,16 +126,16 @@ export default function AddLocationButton() {
             <div className="flex gap-2">
               <button
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded border border-arcade-border px-3 py-2 text-sm"
+                className="arcade-btn-ghost flex-1 px-3 py-2 text-sm"
               >
                 취소
               </button>
               <button
                 onClick={submit}
                 disabled={loading}
-                className="flex-1 rounded bg-arcade-accent px-3 py-2 text-sm font-bold text-arcade-bg disabled:opacity-50"
+                className="arcade-btn-primary flex-1 px-3 py-2 text-sm"
               >
-                {loading ? "등록 중..." : "등록"}
+                {loading ? "등록 중..." : "▶ 등록"}
               </button>
             </div>
           </div>
