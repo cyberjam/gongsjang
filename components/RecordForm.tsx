@@ -68,7 +68,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       <div>
         <label className="mb-1 block text-[11px] text-zinc-400">닉네임 (최대 12자)</label>
         <input
-          className="w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-sm"
+          className="arcade-input"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           placeholder="예: AAA, 은둔고수"
@@ -101,7 +101,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
           기록 ({RECORD_TYPE_UNIT[type]})
         </label>
         <input
-          className="w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-lg font-bold tracking-wider transition focus:border-arcade-accent focus:shadow-[0_0_12px_rgba(255,210,63,0.18)] focus:outline-none"
+          className="arcade-input text-lg font-bold tracking-wider"
           type="number"
           inputMode="numeric"
           min={1}
@@ -115,7 +115,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       <div>
         <label className="mb-1 block text-[11px] text-zinc-400">메모 (선택)</label>
         <textarea
-          className="w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-sm"
+          className="arcade-input"
           rows={2}
           value={memo}
           onChange={(e) => setMemo(e.target.value)}

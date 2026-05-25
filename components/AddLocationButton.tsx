@@ -81,7 +81,7 @@ export default function AddLocationButton() {
 
             <label className="mb-2 block text-[11px] text-zinc-400">이름 *</label>
             <input
-              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              className="arcade-input mb-3 bg-arcade-bg"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: 한강공원 뚝섬 철봉"
@@ -89,7 +89,7 @@ export default function AddLocationButton() {
 
             <label className="mb-2 block text-[11px] text-zinc-400">주소</label>
             <input
-              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              className="arcade-input mb-3 bg-arcade-bg"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="예: 서울 광진구 자양동"
@@ -97,7 +97,7 @@ export default function AddLocationButton() {
 
             <label className="mb-2 block text-[11px] text-zinc-400">한줄 소개</label>
             <textarea
-              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              className="arcade-input mb-3 bg-arcade-bg"
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}

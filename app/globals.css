@@ -44,20 +44,46 @@ body {
 
 /* === Reusable arcade components === */
 @layer components {
+  /* ── CARDS ──────────────────────────────────── */
+  .arcade-card {
+    @apply relative rounded border border-arcade-border bg-arcade-panel;
+  }
+  .arcade-card-feature {
+    @apply arcade-card border-2 border-arcade-accent shadow-arcade-glow;
+  }
   .arcade-card-tap {
-    @apply relative rounded border border-arcade-border bg-arcade-panel transition duration-150 ease-out;
+    @apply arcade-card transition duration-150 ease-out;
   }
   .arcade-card-tap:hover {
-    @apply border-arcade-accent/70;
-    box-shadow:
-      0 0 0 1px rgba(255, 210, 63, 0.08),
-      0 6px 18px rgba(0, 0, 0, 0.45);
+    @apply border-arcade-accent/70 shadow-arcade-card-hover;
   }
   .arcade-card-tap:active {
     transform: translateY(1px) scale(0.997);
     transition-duration: 80ms;
   }
 
+  /* ── STAT BOX (카드 안쪽 작은 칸) ────────────── */
+  .arcade-stat {
+    @apply rounded border border-arcade-border bg-arcade-bg/60 px-3 py-2;
+  }
+
+  /* ── LABEL (캡스 트래킹 캡션) ───────────────── */
+  .arcade-label {
+    @apply text-[9px] uppercase tracking-arcade text-zinc-500;
+  }
+  .arcade-label-wide {
+    @apply text-[9px] uppercase tracking-arcade-wide text-zinc-500;
+  }
+
+  /* ── DIVIDER ────────────────────────────────── */
+  .arcade-divider {
+    @apply mx-auto h-px w-full bg-gradient-to-r from-transparent via-arcade-border to-transparent;
+  }
+  .arcade-divider-accent {
+    @apply mx-auto h-px w-full bg-gradient-to-r from-transparent via-arcade-accent to-transparent;
+  }
+
+  /* ── BUTTONS ────────────────────────────────── */
   .arcade-btn {
     @apply relative inline-flex select-none items-center justify-center overflow-hidden transition duration-150 ease-out;
   }
@@ -72,11 +98,10 @@ body {
   }
 
   .arcade-btn-primary {
-    @apply arcade-btn rounded border-2 border-arcade-accent bg-arcade-accent font-bold text-arcade-bg;
-    box-shadow: 0 0 12px rgba(255, 210, 63, 0.35);
+    @apply arcade-btn rounded border-2 border-arcade-accent bg-arcade-accent font-bold text-arcade-bg shadow-arcade-glow;
   }
   .arcade-btn-primary:hover {
-    box-shadow: 0 0 18px rgba(255, 210, 63, 0.55);
+    @apply shadow-arcade-glow-lg;
   }
   .arcade-btn-primary::before {
     content: "";
@@ -100,20 +125,24 @@ body {
     @apply arcade-btn rounded border border-arcade-border bg-arcade-panel text-zinc-200;
   }
   .arcade-btn-ghost:hover {
-    @apply border-arcade-accent text-arcade-accent;
-    box-shadow: 0 0 10px rgba(255, 210, 63, 0.2);
+    @apply border-arcade-accent text-arcade-accent shadow-arcade-glow-sm;
   }
 
   .arcade-btn-neon {
-    @apply arcade-btn rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon;
-    box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+    @apply arcade-btn rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon shadow-arcade-glow-neon;
   }
   .arcade-btn-neon:hover {
-    box-shadow: 0 0 14px rgba(57, 255, 20, 0.55);
+    @apply shadow-arcade-glow-neon-lg;
   }
 
+  /* ── CHIP / BADGE ───────────────────────────── */
   .arcade-chip {
-    @apply inline-flex select-none items-center rounded border px-2 py-0.5 text-[10px] font-bold tracking-[0.18em] transition;
+    @apply inline-flex select-none items-center rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-arcade transition;
+  }
+
+  /* ── INPUT (form fields) ────────────────────── */
+  .arcade-input {
+    @apply w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-sm transition focus:border-arcade-accent focus:shadow-arcade-glow-sm focus:outline-none;
   }
 }
 

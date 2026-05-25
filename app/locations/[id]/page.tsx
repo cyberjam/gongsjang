@@ -60,14 +60,14 @@ export default async function LocationDetailPage({
       </Link>
 
       {/* STAGE 카드 */}
-      <div className="arcade-scanlines relative mt-2 overflow-hidden rounded border-2 border-arcade-border bg-arcade-panel">
-        <div className="absolute inset-x-0 top-0 mx-auto h-px w-1/2 bg-gradient-to-r from-transparent via-arcade-accent to-transparent" />
+      <div className="arcade-scanlines arcade-card mt-2 overflow-hidden border-2">
+        <div className="arcade-divider-accent absolute inset-x-0 top-0 w-1/2" />
         <div className="relative p-4">
           <div className="flex items-center gap-2">
-            <span className="rounded border border-arcade-accent px-1.5 py-0.5 text-[9px] font-bold tracking-[0.24em] text-arcade-accent">
+            <span className="arcade-chip border-arcade-accent text-arcade-accent">
               STAGE
             </span>
-            <span className="text-[9px] tracking-[0.24em] text-zinc-500">
+            <span className="arcade-label-wide">
               {loc.lat.toFixed(3)}, {loc.lng.toFixed(3)}
             </span>
           </div>
@@ -84,19 +84,15 @@ export default async function LocationDetailPage({
           )}
 
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-arcade-border/60 pt-3">
-            <div className="rounded border border-arcade-border bg-arcade-bg/50 px-3 py-2">
-              <div className="text-[9px] tracking-[0.24em] text-zinc-500">
-                CHALLENGES
-              </div>
+            <div className="arcade-stat">
+              <div className="arcade-label-wide">CHALLENGES</div>
               <div className="text-sm font-bold text-arcade-neon">
                 {totalChallenges}
                 <span className="ml-1 text-[10px] text-zinc-400">회</span>
               </div>
             </div>
-            <div className="rounded border border-arcade-border bg-arcade-bg/50 px-3 py-2">
-              <div className="text-[9px] tracking-[0.24em] text-zinc-500">
-                EVENTS
-              </div>
+            <div className="arcade-stat">
+              <div className="arcade-label-wide">EVENTS</div>
               <div className="text-sm font-bold text-arcade-accent">
                 {RECORD_TYPES.length}
                 <span className="ml-1 text-[10px] text-zinc-400">종목</span>

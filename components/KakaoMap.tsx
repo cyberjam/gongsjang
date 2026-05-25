@@ -254,19 +254,15 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       {/* 상단 HUD */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-3">
         <div className="pointer-events-auto grid grid-cols-2 gap-2">
-          <div className="rounded border border-arcade-border bg-arcade-panel/85 px-3 py-2 backdrop-blur">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-              STAGES
-            </div>
+          <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+            <div className="arcade-label">STAGES</div>
             <div className="font-bold text-arcade-accent">
               {locations.length}
               <span className="ml-1 text-[10px] text-zinc-400">곳</span>
             </div>
           </div>
-          <div className="rounded border border-arcade-border bg-arcade-panel/85 px-3 py-2 backdrop-blur">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-              CHALLENGES
-            </div>
+          <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+            <div className="arcade-label">CHALLENGES</div>
             <div className="font-bold text-arcade-neon">
               {totalChallenges}
               <span className="ml-1 text-[10px] text-zinc-400">회</span>
@@ -287,7 +283,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       {/* 안내 hint */}
       {!selected && ready && (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
-          <div className="rounded border border-arcade-border bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-wider text-zinc-400 backdrop-blur">
+          <div className="arcade-card bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
             ▼ 마커를 눌러 STAGE INFO 열기
           </div>
         </div>
@@ -334,14 +330,8 @@ function StageSheet({
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span
-                className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-[0.18em] ${tierClass}`}
-              >
-                {tierLabel}
-              </span>
-              <span className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-                STAGE
-              </span>
+              <span className={`arcade-chip ${tierClass}`}>{tierLabel}</span>
+              <span className="arcade-label">STAGE</span>
             </div>
             <h2 className="arcade-title mt-1 truncate text-base font-bold text-arcade-accent">
               {location.name}
@@ -362,10 +352,8 @@ function StageSheet({
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
-          <div className="rounded border border-arcade-border bg-arcade-bg/60 p-2">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-              HIGH SCORE
-            </div>
+          <div className="arcade-stat p-2">
+            <div className="arcade-label">HIGH SCORE</div>
             {location.topPullup ? (
               <>
                 <div className="text-sm font-bold text-arcade-accent">
@@ -380,19 +368,15 @@ function StageSheet({
               <div className="text-sm font-bold text-zinc-600">---</div>
             )}
           </div>
-          <div className="rounded border border-arcade-border bg-arcade-bg/60 p-2">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-              CHALLENGERS
-            </div>
+          <div className="arcade-stat p-2">
+            <div className="arcade-label">CHALLENGERS</div>
             <div className="text-sm font-bold text-arcade-neon">
               {location.recordCount}
               <span className="ml-0.5 text-[9px] text-zinc-400">명</span>
             </div>
           </div>
-          <div className="rounded border border-arcade-border bg-arcade-bg/60 p-2">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">
-              DISTANCE
-            </div>
+          <div className="arcade-stat p-2">
+            <div className="arcade-label">DISTANCE</div>
             <div className="text-sm font-bold text-zinc-200">
               {distance == null
                 ? "--"
