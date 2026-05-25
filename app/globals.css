@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #0a0a0f;
+  color: #f4f4f5;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 오락실 점수판 느낌 */
+.arcade-title {
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 8px rgba(255, 210, 63, 0.4);
+}
+
+.arcade-rank-1 { color: #ffd23f; }
+.arcade-rank-2 { color: #d6d6d6; }
+.arcade-rank-3 { color: #cd7f32; }
