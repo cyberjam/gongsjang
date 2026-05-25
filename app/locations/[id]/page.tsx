@@ -22,7 +22,6 @@ export default async function LocationDetailPage({
     .maybeSingle();
 
   if (!location) notFound();
-
   const loc = location as Location;
 
   const { data: recordsData } = await supabase
@@ -31,41 +30,90 @@ export default async function LocationDetailPage({
     .eq("location_id", params.id);
 
   const records: RecordRow[] = recordsData ?? [];
-  const activeType: RecordType = (RECORD_TYPES.find((t) => t.value === searchParams.type)?.value ??
-    "pullup") as RecordType;
+  const activeType: RecordType = (RECORD_TYPES.find(
+    (t) => t.value === searchParams.type,
+  )?.value ?? "pullup") as RecordType;
+
+  const totalChallenges = records.length;
 
   return (
-    <div className="px-4 py-4">
-      <Link href="/locations" className="text-[11px] text-zinc-400 hover:text-arcade-accent">
-        ← 목록으로
+    <div className="px-4 pb-8 pt-3">
+      <Link
+        href="/locations"
+        className="inline-flex items-center gap-1 text-[10px] tracking-[0.2em] text-zinc-400 hover:text-arcade-accent"
+      >
+        <span>←</span>
+        <span>EXIT TO STAGE SELECT</span>
       </Link>
 
-      <div className="mt-2 rounded border border-arcade-border bg-arcade-panel p-4">
-        <h1 className="text-base font-bold text-arcade-accent">{loc.name}</h1>
-        {loc.address && <div className="mt-1 text-[11px] text-zinc-400">{loc.address}</div>}
-        {loc.description && (
-          <div className="mt-2 text-xs text-zinc-300">{loc.description}</div>
-        )}
-        <div className="mt-2 text-[10px] text-zinc-500">
-          {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}
+      {/* STAGE 카드 */}
+      <div className="arcade-scanlines relative mt-2 overflow-hidden rounded border-2 border-arcade-border bg-arcade-panel">
+        <div className="absolute inset-x-0 top-0 mx-auto h-px w-1/2 bg-gradient-to-r from-transparent via-arcade-accent to-transparent" />
+        <div className="relative p-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded border border-arcade-accent px-1.5 py-0.5 text-[9px] font-bold tracking-[0.24em] text-arcade-accent">
+              STAGE
+            </span>
+            <span className="text-[9px] tracking-[0.24em] text-zinc-500">
+              {loc.lat.toFixed(3)}, {loc.lng.toFixed(3)}
+            </span>
+          </div>
+          <h1 className="arcade-title mt-2 text-lg font-bold text-arcade-accent">
+            {loc.name}
+          </h1>
+          {loc.address && (
+            <div className="mt-1 text-[11px] text-zinc-400">{loc.address}</div>
+          )}
+          {loc.description && (
+            <div className="mt-2 border-t border-arcade-border/60 pt-2 text-xs text-zinc-300">
+              {loc.description}
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-arcade-border/60 pt-3">
+            <div className="rounded border border-arcade-border bg-arcade-bg/50 px-3 py-2">
+              <div className="text-[9px] tracking-[0.24em] text-zinc-500">
+                CHALLENGES
+              </div>
+              <div className="text-sm font-bold text-arcade-neon">
+                {totalChallenges}
+                <span className="ml-1 text-[10px] text-zinc-400">회</span>
+              </div>
+            </div>
+            <div className="rounded border border-arcade-border bg-arcade-bg/50 px-3 py-2">
+              <div className="text-[9px] tracking-[0.24em] text-zinc-500">
+                EVENTS
+              </div>
+              <div className="text-sm font-bold text-arcade-accent">
+                {RECORD_TYPES.length}
+                <span className="ml-1 text-[10px] text-zinc-400">종목</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <h2 className="arcade-title text-sm font-bold text-arcade-accent">HIGH SCORE</h2>
-        <Link
-          href={`/locations/${loc.id}/record`}
-          className="rounded bg-arcade-accent px-3 py-1.5 text-xs font-bold text-arcade-bg"
-        >
-          기록 등록 ▶
-        </Link>
-      </div>
+      {/* CTA */}
+      <Link
+        href={`/locations/${loc.id}/record`}
+        className="mt-4 block w-full overflow-hidden rounded border-2 border-arcade-accent bg-arcade-accent py-3 text-center text-arcade-bg shadow-[0_0_14px_rgba(255,210,63,0.5)] transition active:translate-y-px"
+      >
+        <span className="block text-sm font-black tracking-[0.28em]">
+          ▶ NEW CHALLENGER
+        </span>
+        <span className="mt-0.5 block text-[10px] tracking-[0.2em] opacity-80">
+          기록 등록하기
+        </span>
+      </Link>
 
-      <RankingTabs
-        locationId={loc.id}
-        records={records}
-        activeType={activeType}
-      />
+      {/* RANKING */}
+      <div className="mt-6">
+        <RankingTabs
+          locationId={loc.id}
+          records={records}
+          activeType={activeType}
+        />
+      </div>
     </div>
   );
 }
