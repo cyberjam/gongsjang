@@ -1,0 +1,146 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+export default function AddLocationButton() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [description, setDescription] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function pickCurrentLocation() {
+    if (!navigator.geolocation) {
+      setError("이 브라우저는 위치 정보를 지원하지 않아요.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => setCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      (e) => setError("위치를 가져오지 못했어요: " + e.message),
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }
+
+  async function submit() {
+    setError(null);
+    if (!name.trim()) {
+      setError("이름을 입력해주세요.");
+      return;
+    }
+    if (!coords) {
+      setError("현재 위치를 먼저 가져와주세요.");
+      return;
+    }
+    setLoading(true);
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from("locations")
+      .insert({
+        name: name.trim(),
+        address: address.trim() || null,
+        description: description.trim() || null,
+        lat: coords.lat,
+        lng: coords.lng,
+      })
+      .select("id")
+      .single();
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOpen(false);
+    router.refresh();
+    if (data?.id) router.push(`/locations/${data.id}`);
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded border border-arcade-accent px-2 py-1 text-[11px] text-arcade-accent hover:bg-arcade-accent hover:text-arcade-bg"
+      >
+        + 철봉 추가
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-30 flex items-end justify-center bg-black/70 sm:items-center"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-xl border border-arcade-border bg-arcade-panel p-4 sm:rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 text-sm font-bold text-arcade-accent">새 스테이지 등록</div>
+
+            <label className="mb-2 block text-[11px] text-zinc-400">이름 *</label>
+            <input
+              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="예: 한강공원 뚝섬 철봉"
+            />
+
+            <label className="mb-2 block text-[11px] text-zinc-400">주소</label>
+            <input
+              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="예: 서울 광진구 자양동"
+            />
+
+            <label className="mb-2 block text-[11px] text-zinc-400">한줄 소개</label>
+            <textarea
+              className="mb-3 w-full rounded border border-arcade-border bg-arcade-bg px-3 py-2 text-sm"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="예: 철봉 2개, 그늘 좋음"
+            />
+
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                onClick={pickCurrentLocation}
+                type="button"
+                className="rounded border border-arcade-border px-2 py-1 text-[11px] hover:border-arcade-accent"
+              >
+                현재 위치 가져오기
+              </button>
+              <span className="text-[11px] text-zinc-400">
+                {coords
+                  ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+                  : "위치 미설정"}
+              </span>
+            </div>
+
+            {error && (
+              <div className="mb-2 text-[11px] text-arcade-danger">{error}</div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOpen(false)}
+                className="flex-1 rounded border border-arcade-border px-3 py-2 text-sm"
+              >
+                취소
+              </button>
+              <button
+                onClick={submit}
+                disabled={loading}
+                className="flex-1 rounded bg-arcade-accent px-3 py-2 text-sm font-bold text-arcade-bg disabled:opacity-50"
+              >
+                {loading ? "등록 중..." : "등록"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
