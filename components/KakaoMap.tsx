@@ -89,6 +89,34 @@ function tierOf(count: number) {
 
 const PULLUP_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="6" x2="6" y2="22"/><line x1="18" y1="6" x2="18" y2="22"/></svg>`;
 
+type LocateState = "idle" | "scanning" | "locked" | "error";
+const LOCATE_LABEL: Record<LocateState, string> = {
+  idle: "LOCATE",
+  scanning: "SCANNING",
+  locked: "LOCKED",
+  error: "NO SIGNAL",
+};
+
+function CrosshairIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" strokeDasharray="2 3" />
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+      <line x1="12" y1="2" x2="12" y2="6" />
+      <line x1="12" y1="18" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="6" y2="12" />
+      <line x1="18" y1="12" x2="22" y2="12" />
+    </svg>
+  );
+}
+
 export default function KakaoMap({ locations }: { locations: LocationWithStats[] }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,9 +124,12 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
   const myPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const myMarkerRef = useRef<any>(null);
   const markerElsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const myMarkerElRef = useRef<HTMLElement | null>(null);
+  const locateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<LocationWithStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [locateState, setLocateState] = useState<LocateState>("idle");
 
   useEffect(() => {
     const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
@@ -188,6 +219,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
               });
               overlay.setMap(map);
               myMarkerRef.current = overlay;
+              myMarkerElRef.current = meEl;
             },
             () => {},
             { enableHighAccuracy: true, timeout: 5000 },
@@ -214,6 +246,34 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
   const recenter = useCallback(() => {
     const map = mapRef.current;
     if (!map || !window.kakao) return;
+
+    if (locateTimerRef.current) clearTimeout(locateTimerRef.current);
+
+    const triggerBurst = () => {
+      const el = myMarkerElRef.current;
+      if (!el) return;
+      el.dataset.burst = "false";
+      // force reflow → 다시 true로 켜야 애니메이션 재시작
+      void el.offsetWidth;
+      el.dataset.burst = "true";
+      setTimeout(() => {
+        if (el.dataset.burst === "true") el.dataset.burst = "false";
+      }, 1300);
+    };
+
+    const onLocked = () => {
+      setLocateState("locked");
+      triggerBurst();
+      locateTimerRef.current = setTimeout(() => setLocateState("idle"), 1400);
+    };
+
+    const onError = () => {
+      setLocateState("error");
+      locateTimerRef.current = setTimeout(() => setLocateState("idle"), 1800);
+    };
+
+    setLocateState("scanning");
+
     if (myPosRef.current) {
       map.panTo(
         new window.kakao.maps.LatLng(
@@ -221,17 +281,33 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
           myPosRef.current.lng,
         ),
       );
+      // panTo는 즉시 시작되니 시각적 여운만 0.7초 후 LOCKED
+      locateTimerRef.current = setTimeout(onLocked, 700);
       return;
     }
-    navigator.geolocation?.getCurrentPosition(
+
+    if (!navigator.geolocation) {
+      onError();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
       (pos) => {
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         myPosRef.current = here;
         map.panTo(new window.kakao.maps.LatLng(here.lat, here.lng));
+        locateTimerRef.current = setTimeout(onLocked, 700);
       },
-      () => {},
-      { enableHighAccuracy: true, timeout: 5000 },
+      () => onError(),
+      { enableHighAccuracy: true, timeout: 6000 },
     );
+  }, []);
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (locateTimerRef.current) clearTimeout(locateTimerRef.current);
+    };
   }, []);
 
   if (error) {
@@ -288,13 +364,18 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         </div>
       </div>
 
-      {/* 재중심 버튼 */}
+      {/* LOCATE — GPS 레이더 버튼 */}
       <button
         onClick={recenter}
-        aria-label="현재 위치로 이동"
-        className="arcade-btn-neon absolute right-3 top-[88px] z-20 h-11 w-11 backdrop-blur"
+        disabled={locateState === "scanning"}
+        data-state={locateState}
+        aria-label={`현재 위치 — ${LOCATE_LABEL[locateState]}`}
+        className="gj-locate absolute right-3 top-[88px] z-20 backdrop-blur"
       >
-        <span className="text-base leading-none">◉</span>
+        <span className="gj-locate-icon">
+          <CrosshairIcon />
+        </span>
+        <span>{LOCATE_LABEL[locateState]}</span>
       </button>
 
       {/* 안내 hint */}
