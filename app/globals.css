@@ -201,40 +201,32 @@ body {
 
 .gj-marker:active { transform: scale(0.96); }
 
-/* 라벨 콜아웃 */
-.gj-marker-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  margin-bottom: 4px;
+/* 코너 칩 — ★N / NEW (항상 보임, 작게) */
+.gj-marker-chip {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  z-index: 1;
+  min-width: 18px;
+  padding: 1px 5px;
   background: rgba(21, 21, 31, 0.96);
-  border: 1px solid #2a2a3a;
-  border-radius: 3px;
-  font-size: 10px;
-  letter-spacing: 0.03em;
-  color: #f4f4f5;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
-}
-.gj-marker-name { color: #f4f4f5; font-weight: 600; }
-.gj-marker-score { color: var(--tier-color); font-weight: 700; }
-.gj-marker-new-tag {
+  border: 1px solid var(--tier-color);
+  border-radius: 9px;
   color: var(--tier-color);
-  font-weight: 700;
   font-size: 9px;
-  letter-spacing: 0.1em;
-}
-
-.gj-marker[data-tier="active"] .gj-marker-card { border-color: var(--tier-color); }
-.gj-marker[data-tier="hot"] .gj-marker-card {
-  border-color: var(--tier-color);
-  color: var(--tier-color);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  white-space: nowrap;
   box-shadow:
-    0 2px 12px rgba(var(--tier-rgb), 0.35),
-    0 0 0 1px rgba(var(--tier-rgb), 0.2);
+    0 0 6px rgba(var(--tier-rgb), 0.55),
+    0 2px 4px rgba(0, 0, 0, 0.5);
 }
-.gj-marker[data-tier="hot"] .gj-marker-name { color: var(--tier-color); }
+.gj-marker-chip[data-variant="new"] {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  padding: 1px 4px;
+}
 
 /* 철봉 아이콘 (Π) + 네온 프레임 */
 .gj-marker-icon {
@@ -495,10 +487,14 @@ body {
   100% { transform: scale(6);   opacity: 0; }
 }
 
-/* === Bottom sheet slide === */
+/* === Sheet slide animations === */
 @keyframes gj-slide-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+@keyframes gj-slide-down {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 /* === CRT scanlines (랭킹/스테이지 카드 배경) === */

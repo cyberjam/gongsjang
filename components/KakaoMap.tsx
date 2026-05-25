@@ -161,17 +161,14 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
           el.className = "gj-marker";
           el.dataset.tier = tier;
           el.dataset.selected = "false";
+          const chipHtml =
+            loc.recordCount > 0
+              ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
+              : `<span class="gj-marker-chip" data-variant="new" aria-label="신규">NEW</span>`;
           el.innerHTML = `
-            <div class="gj-marker-card">
-              <span class="gj-marker-name">${escapeHtml(loc.name)}</span>
-              ${
-                loc.recordCount > 0
-                  ? `<span class="gj-marker-score">★${loc.recordCount}</span>`
-                  : `<span class="gj-marker-new-tag">NEW</span>`
-              }
-            </div>
-            <div class="gj-marker-icon">
+            <div class="gj-marker-icon" aria-label="${escapeHtml(loc.name)}">
               ${PULLUP_SVG}
+              ${chipHtml}
               <span class="gj-marker-icon-ring"></span>
             </div>
             <div class="gj-marker-base"></div>
@@ -344,24 +341,32 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         }}
       />
 
-      {/* 상단 HUD */}
+      {/* 상단 영역: selected 있으면 STAGE 정보 카드, 없으면 HUD */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-3">
-        <div className="pointer-events-auto grid grid-cols-2 gap-2">
-          <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
-            <div className="arcade-label">STAGES</div>
-            <div className="font-bold text-arcade-accent">
-              {locations.length}
-              <span className="ml-1 text-[10px] text-zinc-400">곳</span>
+        {selected ? (
+          <SelectedHeader
+            key={selected.id}
+            location={selected}
+            onClose={() => setSelected(null)}
+          />
+        ) : (
+          <div className="pointer-events-auto grid grid-cols-2 gap-2">
+            <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+              <div className="arcade-label">STAGES</div>
+              <div className="font-bold text-arcade-accent">
+                {locations.length}
+                <span className="ml-1 text-[10px] text-zinc-400">곳</span>
+              </div>
+            </div>
+            <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+              <div className="arcade-label">CHALLENGES</div>
+              <div className="font-bold text-arcade-neon">
+                {totalChallenges}
+                <span className="ml-1 text-[10px] text-zinc-400">회</span>
+              </div>
             </div>
           </div>
-          <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
-            <div className="arcade-label">CHALLENGES</div>
-            <div className="font-bold text-arcade-neon">
-              {totalChallenges}
-              <span className="ml-1 text-[10px] text-zinc-400">회</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* LOCATE — GPS 레이더 버튼 */}
@@ -400,6 +405,66 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
   );
 }
 
+function SelectedHeader({
+  location,
+  onClose,
+}: {
+  location: LocationWithStats;
+  onClose: () => void;
+}) {
+  const tier = tierOf(location.recordCount);
+  const tierClass =
+    tier === "hot"
+      ? "border-arcade-danger text-arcade-danger"
+      : tier === "active"
+        ? "border-arcade-accent text-arcade-accent"
+        : "border-arcade-neon text-arcade-neon";
+
+  return (
+    <div className="pointer-events-auto animate-[gj-slide-down_0.18s_ease-out]">
+      <div className="arcade-card border-2 border-arcade-accent bg-arcade-panel/95 px-3 py-2.5 shadow-arcade-glow backdrop-blur">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="arcade-chip border-arcade-accent text-arcade-accent">
+                STAGE
+              </span>
+              {location.recordCount === 0 && (
+                <span className="arcade-chip border-arcade-neon text-arcade-neon">
+                  NEW
+                </span>
+              )}
+            </div>
+            <h3 className="arcade-title mt-1.5 truncate text-sm font-bold text-arcade-accent">
+              {location.name}
+            </h3>
+            {location.address && (
+              <div className="truncate text-[10px] text-zinc-400">
+                {location.address}
+              </div>
+            )}
+          </div>
+          {location.recordCount > 0 && (
+            <div className="shrink-0 text-right">
+              <div className="arcade-label">SCORE</div>
+              <div className={`text-base font-bold ${tierClass.split(" ")[1]}`}>
+                ★{location.recordCount}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="닫기"
+            className="arcade-btn-ghost shrink-0 px-1.5 py-0.5 text-[10px] leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StageSheet({
   location,
   distance,
@@ -425,28 +490,12 @@ function StageSheet({
       <div className="border-t border-arcade-accent bg-arcade-panel/95 px-4 pb-4 pt-3 shadow-[0_-6px_24px_rgba(255,210,63,0.18)] backdrop-blur">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-arcade-border" />
 
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className={`arcade-chip ${tierClass}`}>{tierLabel}</span>
-              <span className="arcade-label">STAGE</span>
-            </div>
-            <h2 className="arcade-title mt-1 truncate text-base font-bold text-arcade-accent">
-              {location.name}
-            </h2>
-            {location.address && (
-              <div className="truncate text-[10px] text-zinc-400">
-                {location.address}
-              </div>
-            )}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className={`arcade-chip ${tierClass}`}>{tierLabel}</span>
+            <span className="arcade-label-wide">STAGE INFO</span>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="닫기"
-            className="arcade-btn-ghost shrink-0 px-2 py-1 text-xs"
-          >
-            ✕
-          </button>
+          <span className="arcade-label">지도 탭 ▸ 닫기</span>
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
