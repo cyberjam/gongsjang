@@ -1,4 +1,5 @@
 import type { RecordRow } from "@/lib/types";
+import { COPY, deterministicOf } from "@/lib/copy";
 
 function daysSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
@@ -12,8 +13,11 @@ export default function StageBoss({
   totalPullups: number;
 }) {
   if (!boss) {
-    return <VacantStage />;
+    return <VacantStage seed={"vacant"} />;
   }
+
+  const legendLine = deterministicOf(COPY.legendStanding, boss.location_id);
+  const introLine = deterministicOf(COPY.legendIntro, boss.location_id);
 
   const days = daysSince(boss.created_at);
   const standingLabel =
@@ -34,7 +38,7 @@ export default function StageBoss({
           ✦ STAGE BOSS ✦
         </div>
         <div className="mt-1 text-[10px] tracking-[0.24em] text-zinc-500">
-          이 동네 은둔고수
+          {introLine}
         </div>
 
         <div className="arcade-glow-gold mt-4 text-2xl leading-none text-arcade-accent">
@@ -64,9 +68,9 @@ export default function StageBoss({
         {/* 디바이더 */}
         <div className="mx-auto my-4 h-px w-3/4 bg-gradient-to-r from-transparent via-arcade-border to-transparent" />
 
-        {/* 전설 문구 */}
+        {/* 전설 문구 (location 기반 결정적 픽) */}
         <div className="text-[11px] font-bold tracking-[0.18em] text-arcade-danger">
-          ╳ 아직 아무도 이 기록을 넘지 못했다 ╳
+          ╳ {legendLine} ╳
         </div>
 
         {/* 통계 박스 */}
@@ -93,7 +97,8 @@ export default function StageBoss({
   );
 }
 
-function VacantStage() {
+function VacantStage({ seed }: { seed: string }) {
+  const headline = deterministicOf(COPY.vacantStage.slice(0, 4), seed);
   return (
     <div className="arcade-scanlines relative mt-4 overflow-hidden rounded border-2 border-dashed border-arcade-neon/70 bg-arcade-panel">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-arcade-neon to-transparent" />
@@ -106,7 +111,7 @@ function VacantStage() {
         <div className="mx-auto my-3 h-px w-16 bg-arcade-border" />
 
         <div className="arcade-glow-neon text-2xl font-black tracking-[0.1em] text-arcade-neon">
-          이 도장은 주인이 없다
+          {headline}
         </div>
         <div className="mt-2 text-[11px] tracking-[0.2em] text-zinc-400">
           첫 도전자가 전설이 된다
