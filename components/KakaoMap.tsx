@@ -216,12 +216,15 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         mapClickListenerRef.current = null;
       }
 
-      // 현재 위치 overlay 분리
+      // 현재 위치 overlay 분리 + DOM까지 제거
       if (myMarkerOverlayRef.current) {
         myMarkerOverlayRef.current.setMap(null);
         myMarkerOverlayRef.current = null;
       }
-      myMarkerElRef.current = null;
+      if (myMarkerElRef.current) {
+        myMarkerElRef.current.remove();
+        myMarkerElRef.current = null;
+      }
 
       // 카카오 Map은 별도 dispose 메서드가 없음 — 컨테이너 정리에 맡김
       mapRef.current = null;
@@ -241,6 +244,7 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
     markerOverlaysRef.current.forEach(({ overlay, el, onClick }) => {
       overlay.setMap(null);
       el.removeEventListener("click", onClick);
+      el.remove(); // DOM 노드까지 명시적 제거 (ghost 방지)
     });
     markerOverlaysRef.current = [];
 
@@ -260,7 +264,6 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         <div class="gj-marker-icon" aria-label="${escapeHtml(loc.name)}">
           ${PULLUP_SVG}
           ${chipHtml}
-          <span class="gj-marker-icon-ring"></span>
         </div>
         <div class="gj-marker-base"></div>
       `;
@@ -296,12 +299,12 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
     }
 
     return () => {
-      // unmount 또는 deps 변경 직전 — 만들었던 next 배열 분리
+      // unmount 또는 deps 변경 직전 — 만들었던 next 배열 완전 분리
       next.forEach(({ overlay, el, onClick }) => {
         overlay.setMap(null);
         el.removeEventListener("click", onClick);
+        el.remove(); // DOM 노드까지 명시적 제거
       });
-      // 동일한 참조면 ref도 비움 (StrictMode 안전)
       if (markerOverlaysRef.current === next) {
         markerOverlaysRef.current = [];
       }
