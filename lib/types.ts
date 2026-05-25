@@ -31,6 +31,11 @@ export type Location = {
   created_at: string;
 };
 
+export type LocationWithStats = Location & {
+  recordCount: number;
+  topPullup: { value: number; nickname: string } | null;
+};
+
 export type RecordRow = {
   id: string;
   location_id: string;

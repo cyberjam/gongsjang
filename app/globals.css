@@ -21,3 +21,142 @@ body {
 .arcade-rank-1 { color: #ffd23f; }
 .arcade-rank-2 { color: #d6d6d6; }
 .arcade-rank-3 { color: #cd7f32; }
+
+/* === Map markers (Pokemon GO + 오락실 스테이지) === */
+.gj-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.12s ease;
+}
+.gj-marker:active { transform: translateY(1px) scale(0.97); }
+
+.gj-marker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  margin-bottom: 5px;
+  background: rgba(21, 21, 31, 0.95);
+  border: 1px solid #2a2a3a;
+  border-radius: 3px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #f4f4f5;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.gj-marker-name { color: #f4f4f5; }
+.gj-marker-count { color: #ffd23f; font-weight: 700; }
+.gj-marker-new {
+  color: #39ff14;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.gj-marker[data-tier="active"] .gj-marker-label { border-color: #ffd23f; }
+.gj-marker[data-tier="hot"] .gj-marker-label {
+  border-color: #ff3864;
+  box-shadow: 0 2px 12px rgba(255, 56, 100, 0.35), 0 0 0 1px rgba(255, 56, 100, 0.2);
+}
+.gj-marker[data-tier="hot"] .gj-marker-name { color: #ff3864; }
+.gj-marker[data-tier="hot"] .gj-marker-count { color: #ff3864; }
+
+.gj-marker-pin {
+  position: relative;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+.gj-marker-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #ffd23f;
+  border-radius: 50%;
+  box-shadow:
+    0 0 8px rgba(255, 210, 63, 0.6),
+    inset 0 0 4px rgba(255, 210, 63, 0.35);
+}
+.gj-marker-core {
+  width: 6px;
+  height: 6px;
+  background: #ffd23f;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 210, 63, 0.9);
+}
+.gj-marker[data-tier="new"] .gj-marker-ring {
+  border-color: #39ff14;
+  box-shadow:
+    0 0 6px rgba(57, 255, 20, 0.55),
+    inset 0 0 4px rgba(57, 255, 20, 0.3);
+}
+.gj-marker[data-tier="new"] .gj-marker-core {
+  background: #39ff14;
+  box-shadow: 0 0 6px rgba(57, 255, 20, 0.85);
+}
+.gj-marker[data-tier="hot"] .gj-marker-ring {
+  border-color: #ff3864;
+  box-shadow:
+    0 0 14px rgba(255, 56, 100, 0.75),
+    inset 0 0 4px rgba(255, 56, 100, 0.4);
+  animation: gj-pulse-pin 1.4s ease-in-out infinite;
+}
+.gj-marker[data-tier="hot"] .gj-marker-core {
+  background: #ff3864;
+  box-shadow: 0 0 8px rgba(255, 56, 100, 0.95);
+}
+
+@keyframes gj-pulse-pin {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.22); opacity: 0.75; }
+}
+
+/* === Current location === */
+.gj-here {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+.gj-here-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: #39ff14;
+  border: 2px solid #0a0a0f;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.95);
+  z-index: 2;
+}
+.gj-here-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: rgba(57, 255, 20, 0.35);
+  border-radius: 50%;
+  animation: gj-pulse 1.8s ease-out infinite;
+}
+.gj-here-pulse-2 { animation-delay: 0.9s; }
+@keyframes gj-pulse {
+  0% { transform: scale(0.6); opacity: 0.85; }
+  100% { transform: scale(3.6); opacity: 0; }
+}
+
+/* === Bottom sheet slide === */
+@keyframes gj-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
