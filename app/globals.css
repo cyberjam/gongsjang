@@ -226,7 +226,7 @@ body {
   letter-spacing: 0.12em;
 }
 
-/* 아이콘 — 작은 오브젝트, 단일 외부 글로우 (inset 제거) */
+/* 아이콘 — 작은 오브젝트 (테두리 반투명, soft glow 1단) */
 .gj-marker-icon {
   position: relative;
   width: 30px;
@@ -234,43 +234,65 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0e0e16;
+  background: rgba(10, 10, 15, 0.88);
   border: 1px solid rgba(var(--tier-rgb), 0.55);
   border-radius: 4px;
   color: var(--tier-color);
-  box-shadow: 0 0 6px rgba(var(--tier-rgb), 0.3);
+  box-shadow: 0 0 8px rgba(var(--tier-rgb), 0.35);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  /* SVG drop-shadow 누적 방지를 위해 filter 사용 안 함 */
 }
 .gj-marker-icon svg {
   width: 18px;
   height: 18px;
+  filter: drop-shadow(0 0 3px rgba(var(--tier-rgb), 0.7));
 }
 
-/* 지면 도트 */
+/* 지면 도트 — 작게, 외곽 링 제거 */
 .gj-marker-base {
   margin-top: 2px;
   width: 4px;
   height: 4px;
   background: var(--tier-color);
   border-radius: 50%;
-  box-shadow: 0 0 4px rgba(var(--tier-rgb), 0.6);
+  box-shadow: 0 0 5px rgba(var(--tier-rgb), 0.7);
 }
 
-/* HOT — 색·보더 강도만 차이 (글로우 한 겹 유지) */
+/* HOT — 색·글로우만 살짝 강하게 (펄스 없음) */
 .gj-marker[data-tier="hot"] .gj-marker-icon {
-  border-color: rgba(var(--tier-rgb), 0.75);
-  box-shadow: 0 0 9px rgba(var(--tier-rgb), 0.45);
+  border-color: rgba(var(--tier-rgb), 0.7);
+  box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.55);
 }
 
-/* SELECTED — 단일 글로우, inset/펄스 링 모두 제거 */
+/* SELECTED — 약간 확대 + 보더 선명 + 외곽 펄스 링 */
 .gj-marker[data-selected="true"] {
   transform: scale(1.18);
   z-index: 10;
 }
 .gj-marker[data-selected="true"] .gj-marker-icon {
   border-color: var(--tier-color);
-  box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.6);
+  box-shadow:
+    0 0 14px rgba(var(--tier-rgb), 0.7),
+    inset 0 0 4px rgba(var(--tier-rgb), 0.3);
+}
+.gj-marker[data-selected="true"] .gj-marker-icon > svg {
+  filter: drop-shadow(0 0 5px rgba(var(--tier-rgb), 0.9));
+}
+
+/* 외곽 펄스 링 — selected 전용 */
+.gj-marker-icon-ring {
+  position: absolute;
+  inset: -3px;
+  border: 1px solid var(--tier-color);
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+}
+.gj-marker[data-selected="true"] .gj-marker-icon-ring {
+  animation: gj-selected-ring 1.6s ease-out infinite;
+}
+@keyframes gj-selected-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
 
 /* === Locate button (GPS 레이더) === */
