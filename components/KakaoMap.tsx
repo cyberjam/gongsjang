@@ -41,7 +41,7 @@ function loadKakaoScript(appKey: string): Promise<void> {
       if (!window.kakao || !window.kakao.maps) {
         reject(
           new Error(
-            `script loaded but window.kakao undefined. ` +
+            `Kakao SDK 응답은 받았지만 초기화 실패. ` +
               `origin=${window.location.origin} key=${maskKey(appKey)}`,
           ),
         );
@@ -52,8 +52,8 @@ function loadKakaoScript(appKey: string): Promise<void> {
     script.onerror = () => {
       reject(
         new Error(
-          `script tag onerror (network/HTTP 실패). ` +
-            `origin=${window.location.origin} key=${maskKey(appKey)} src=${src}`,
+          `Kakao SDK 로드 실패. ` +
+            `origin=${window.location.origin} key=${maskKey(appKey)}`,
         ),
       );
     };
