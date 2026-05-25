@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Location, RecordRow, RecordType } from "@/lib/types";
 import { RECORD_TYPES } from "@/lib/types";
 import RankingTabs from "@/components/RankingTabs";
+import StageBoss from "@/components/StageBoss";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,18 @@ export default async function LocationDetailPage({
   const activeType: RecordType = (RECORD_TYPES.find(
     (t) => t.value === searchParams.type,
   )?.value ?? "pullup") as RecordType;
+
+  const pullups = records.filter((r) => r.record_type === "pullup");
+  const boss =
+    pullups.length > 0
+      ? pullups
+          .slice()
+          .sort(
+            (a, b) =>
+              b.value - a.value ||
+              a.created_at.localeCompare(b.created_at),
+          )[0]
+      : null;
 
   const totalChallenges = records.length;
 
@@ -93,20 +106,25 @@ export default async function LocationDetailPage({
         </div>
       </div>
 
-      {/* CTA */}
+      {/* STAGE BOSS */}
+      <StageBoss boss={boss} totalPullups={pullups.length} />
+
+      {/* CTA (보스 유무에 따라 카피 변경) */}
       <Link
         href={`/locations/${loc.id}/record`}
         className="mt-4 block w-full overflow-hidden rounded border-2 border-arcade-accent bg-arcade-accent py-3 text-center text-arcade-bg shadow-[0_0_14px_rgba(255,210,63,0.5)] transition active:translate-y-px"
       >
         <span className="block text-sm font-black tracking-[0.28em]">
-          ▶ NEW CHALLENGER
+          {boss ? "▶ 보스 도전" : "▶ 첫 전설이 되어라"}
         </span>
-        <span className="mt-0.5 block text-[10px] tracking-[0.2em] opacity-80">
-          기록 등록하기
+        <span className="mt-0.5 block truncate text-[10px] tracking-[0.18em] opacity-85">
+          {boss
+            ? `${boss.nickname}의 ${boss.value}회를 넘어라`
+            : "기록 등록하기"}
         </span>
       </Link>
 
-      {/* RANKING */}
+      {/* HIGH SCORE BOARD */}
       <div className="mt-6">
         <RankingTabs
           locationId={loc.id}
