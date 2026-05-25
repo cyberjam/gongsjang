@@ -15,6 +15,11 @@ type Props = {
   initialCenter?: { lat: number; lng: number };
 };
 
+function maskKey(k: string) {
+  if (k.length <= 8) return k;
+  return `${k.slice(0, 4)}…${k.slice(-4)} (len=${k.length})`;
+}
+
 function loadKakaoScript(appKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined") return reject(new Error("no window"));
@@ -27,12 +32,31 @@ function loadKakaoScript(appKey: string): Promise<void> {
       existing.addEventListener("load", () => window.kakao.maps.load(() => resolve()));
       return;
     }
+    const src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
     const script = document.createElement("script");
     script.id = "kakao-map-sdk";
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
-    script.onload = () => window.kakao.maps.load(() => resolve());
-    script.onerror = () => reject(new Error("kakao sdk load failed"));
+    script.src = src;
+    script.onload = () => {
+      if (!window.kakao || !window.kakao.maps) {
+        reject(
+          new Error(
+            `script loaded but window.kakao undefined. ` +
+              `origin=${window.location.origin} key=${maskKey(appKey)}`,
+          ),
+        );
+        return;
+      }
+      window.kakao.maps.load(() => resolve());
+    };
+    script.onerror = () => {
+      reject(
+        new Error(
+          `script tag onerror (network/HTTP 실패). ` +
+            `origin=${window.location.origin} key=${maskKey(appKey)} src=${src}`,
+        ),
+      );
+    };
     document.head.appendChild(script);
   });
 }
@@ -115,8 +139,14 @@ export default function KakaoMap({ locations, initialCenter }: Props) {
 
   if (error) {
     return (
-      <div className="flex h-[60vh] items-center justify-center p-4 text-center text-sm text-arcade-danger">
-        {error}
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 p-4 text-center">
+        <div className="text-sm font-bold text-arcade-danger">지도 로드 실패</div>
+        <pre className="max-w-full overflow-auto whitespace-pre-wrap break-all rounded border border-arcade-danger/40 bg-arcade-panel p-3 text-left text-[10px] text-arcade-danger">
+          {error}
+        </pre>
+        <div className="text-[11px] text-zinc-400">
+          위 메시지를 복사해서 문의에 첨부하세요.
+        </div>
       </div>
     );
   }
