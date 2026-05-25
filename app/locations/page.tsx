@@ -17,7 +17,7 @@ export default async function LocationsPage() {
   return (
     <div className="arcade-fade-in px-4 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="arcade-title text-base font-bold text-arcade-accent">
+        <h1 className="arcade-title font-display text-2xl leading-none text-arcade-accent">
           STAGE SELECT
         </h1>
         <AddLocationButton />

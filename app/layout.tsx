@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { VT323 } from "next/font/google";
 import "./globals.css";
+
+const fontDisplay = VT323({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -28,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" className={fontDisplay.variable}>
       <body className="min-h-screen bg-arcade-bg text-zinc-100">
         <div className="mx-auto flex min-h-screen max-w-md flex-col">
           <header className="sticky top-0 z-20 border-b border-arcade-border bg-arcade-bg/90 backdrop-blur">
@@ -38,10 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 aria-label="공스장 — 동네 철봉 도장깨기"
                 className="group inline-flex items-baseline gap-2"
               >
-                <span className="arcade-title text-lg font-black text-arcade-accent">
+                <span className="arcade-title text-xl font-black text-arcade-accent">
                   공스장
                 </span>
-                <span className="text-[9px] tracking-arcade-wide text-zinc-500 group-hover:text-arcade-accent">
+                <span className="font-display text-base leading-none tracking-[0.1em] text-zinc-500 group-hover:text-arcade-accent">
                   GONGSJANG
                 </span>
               </Link>

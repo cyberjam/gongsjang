@@ -30,9 +30,24 @@ GPS 기반 동네 철봉 랭킹 웹앱. **운동 앱이 아니라 인디게임**
 | `arcade-danger` | `#ff3864` | 빨강 — HOT, 경고, 전설 강조 |
 | `arcade-muted` | `#888fa0` | 보조 텍스트 |
 
-### 2. 폰트 — 모노스페이스 고정
+### 2. 폰트
 
-`ui-monospace, SFMono-Regular, Menlo` 전체. **산세리프 금지.**
+두 패밀리 (`tailwind.config.ts → fontFamily`):
+
+| 토큰 | 사용처 | 비고 |
+|---|---|---|
+| `font-mono` (기본) | 본문, 라벨, 작은 캡션 (≤ 14px) | 시스템 모노 — 한글/영문/숫자 균형 |
+| `font-display` | 큰 숫자, 헤딩, 주요 버튼 (≥ 16px) | **VT323** (비트맵 모노 터미널, Latin 전용) |
+
+**font-display 적용 규칙**
+- ✅ 14px 이상 큰 디스플레이 텍스트
+- ✅ 점수 숫자(★N), 챔피언/보스 값, 랭킹 번호
+- ✅ 헤딩 (HIGH SCORE, STAGE BOSS, STAGE SELECT, GAME OVER)
+- ✅ 주요 CTA 버튼 라벨 (ENTER STAGE, SUBMIT SCORE 등)
+- ❌ 한글 본문/설명 (VT323는 Latin 전용 → 시스템 모노로 자동 폴백되니 한글 섞여도 안전, 다만 작은 한글에는 굳이 적용 X)
+- ❌ ≤ 12px 작은 라벨 (비트맵이라 작을수록 가독성 떨어짐)
+
+**산세리프 금지.** 두 패밀리 모두 모노스페이스 계열.
 
 ### 3. 글자 트래킹 (letter-spacing)
 

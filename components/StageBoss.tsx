@@ -33,7 +33,7 @@ export default function StageBoss({
       <CornerMarks />
 
       <div className="relative px-4 py-5 text-center">
-        <div className="text-[10px] font-bold tracking-arcade-xwide text-arcade-accent">
+        <div className="font-display text-base leading-none tracking-[0.16em] text-arcade-accent">
           ✦ STAGE BOSS ✦
         </div>
         <div className="arcade-label-wide mt-1">{introLine}</div>
@@ -42,17 +42,17 @@ export default function StageBoss({
           ♛
         </div>
 
-        <div className="arcade-glow-gold mt-2 truncate text-3xl font-black tracking-[0.06em] text-arcade-accent">
+        <div className="arcade-glow-gold font-display mt-2 truncate text-4xl leading-none tracking-[0.04em] text-arcade-accent">
           {boss.nickname}
         </div>
 
         <div className="mt-3 flex items-baseline justify-center gap-1.5">
-          <span className="arcade-glow-gold text-[3.5rem] font-black leading-none text-arcade-accent">
+          <span className="arcade-glow-gold font-display text-[5rem] leading-none text-arcade-accent tabular-nums">
             {boss.value.toLocaleString()}
           </span>
           <span className="text-sm tracking-wider text-zinc-300">회</span>
         </div>
-        <div className="mt-1 text-[10px] tracking-arcade-xwide text-zinc-400">
+        <div className="font-display mt-1 text-sm leading-none tracking-[0.18em] text-zinc-400">
           PULL-UP
         </div>
 
@@ -76,7 +76,7 @@ export default function StageBoss({
           <div className="w-px bg-arcade-border" />
           <div className="px-3 py-1.5">
             <div className="arcade-label-wide">DEFEATED</div>
-            <div className="font-bold text-arcade-neon">
+            <div className="font-display text-base leading-none text-arcade-neon tabular-nums">
               {defeatedCount}
               <span className="ml-0.5 text-[9px] text-zinc-400">명</span>
             </div>
@@ -95,7 +95,7 @@ function VacantStage({ seed }: { seed: string }) {
       <CornerMarks neon />
 
       <div className="relative px-4 py-8 text-center">
-        <div className="text-[10px] tracking-arcade-xwide text-zinc-500">
+        <div className="font-display text-base leading-none tracking-[0.16em] text-zinc-500">
           VACANT_STAGE
         </div>
         <div className="arcade-divider my-3 w-16" />

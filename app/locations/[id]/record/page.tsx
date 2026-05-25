@@ -27,7 +27,7 @@ export default async function RecordPage({ params }: { params: { id: string } })
         <span className="truncate">{loc.name}</span>
       </Link>
 
-      <h1 className="arcade-title mt-2 text-base font-bold text-arcade-accent">
+      <h1 className="arcade-title font-display mt-2 text-2xl leading-none text-arcade-accent">
         ENTER YOUR SCORE
       </h1>
       <p className="mb-4 text-[11px] text-zinc-400">

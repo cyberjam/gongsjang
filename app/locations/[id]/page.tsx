@@ -86,14 +86,14 @@ export default async function LocationDetailPage({
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-arcade-border/60 pt-3">
             <div className="arcade-stat">
               <div className="arcade-label-wide">CHALLENGES</div>
-              <div className="text-sm font-bold text-arcade-neon">
+              <div className="font-display text-xl leading-none text-arcade-neon tabular-nums">
                 {totalChallenges}
                 <span className="ml-1 text-[10px] text-zinc-400">회</span>
               </div>
             </div>
             <div className="arcade-stat">
               <div className="arcade-label-wide">EVENTS</div>
-              <div className="text-sm font-bold text-arcade-accent">
+              <div className="font-display text-xl leading-none text-arcade-accent tabular-nums">
                 {RECORD_TYPES.length}
                 <span className="ml-1 text-[10px] text-zinc-400">종목</span>
               </div>
@@ -110,10 +110,10 @@ export default async function LocationDetailPage({
         href={`/locations/${loc.id}/record`}
         className="arcade-btn-primary mt-4 w-full flex-col py-3 text-center"
       >
-        <span className="block text-sm font-black tracking-[0.28em]">
+        <span className="font-display block text-lg leading-none tracking-[0.18em]">
           {boss ? "▶ 보스 도전" : "▶ 첫 전설이 되어라"}
         </span>
-        <span className="mt-0.5 block truncate text-[10px] tracking-[0.18em] opacity-85">
+        <span className="mt-1 block truncate text-[10px] tracking-[0.18em] opacity-85">
           {boss
             ? `${boss.nickname}의 ${boss.value}회를 넘어라`
             : "기록 등록하기"}

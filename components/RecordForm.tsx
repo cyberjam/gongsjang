@@ -129,7 +129,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="arcade-btn-primary w-full py-3 text-sm tracking-[0.28em]"
+        className="arcade-btn-primary font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
       >
         {loading ? "등록 중..." : "▶ SUBMIT SCORE"}
       </button>

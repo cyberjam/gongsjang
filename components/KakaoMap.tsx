@@ -351,16 +351,16 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
           />
         ) : (
           <div className="pointer-events-auto grid grid-cols-2 gap-2">
-            <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+            <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
               <div className="arcade-label">STAGES</div>
-              <div className="font-bold text-arcade-accent">
+              <div className="font-display text-xl leading-none text-arcade-accent tabular-nums">
                 {locations.length}
                 <span className="ml-1 text-[10px] text-zinc-400">곳</span>
               </div>
             </div>
-            <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+            <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
               <div className="arcade-label">CHALLENGES</div>
-              <div className="font-bold text-arcade-neon">
+              <div className="font-display text-xl leading-none text-arcade-neon tabular-nums">
                 {totalChallenges}
                 <span className="ml-1 text-[10px] text-zinc-400">회</span>
               </div>
@@ -503,7 +503,7 @@ function StageSheet({
             <div className="arcade-label">HIGH SCORE</div>
             {location.topPullup ? (
               <>
-                <div className="text-sm font-bold text-arcade-accent">
+                <div className="font-display text-lg leading-none text-arcade-accent tabular-nums">
                   {location.topPullup.value}
                   <span className="ml-0.5 text-[9px] text-zinc-400">회</span>
                 </div>
@@ -512,19 +512,19 @@ function StageSheet({
                 </div>
               </>
             ) : (
-              <div className="text-sm font-bold text-zinc-600">---</div>
+              <div className="font-display text-lg leading-none text-zinc-600">---</div>
             )}
           </div>
           <div className="arcade-stat p-2">
             <div className="arcade-label">CHALLENGERS</div>
-            <div className="text-sm font-bold text-arcade-neon">
+            <div className="font-display text-lg leading-none text-arcade-neon tabular-nums">
               {location.recordCount}
               <span className="ml-0.5 text-[9px] text-zinc-400">명</span>
             </div>
           </div>
           <div className="arcade-stat p-2">
             <div className="arcade-label">DISTANCE</div>
-            <div className="text-sm font-bold text-zinc-200">
+            <div className="font-display text-lg leading-none text-zinc-200 tabular-nums">
               {distance == null
                 ? "--"
                 : distance < 1
@@ -536,7 +536,7 @@ function StageSheet({
 
         <button
           onClick={onChallenge}
-          className="arcade-btn-primary w-full py-3 text-sm tracking-[0.28em]"
+          className="arcade-btn-primary font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
         >
           ▶ ENTER STAGE
         </button>

@@ -21,6 +21,15 @@ const config: Config = {
       },
       fontFamily: {
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        // 디스플레이용 비트맵 폰트 (큰 숫자/헤딩/주요 버튼). Latin 전용.
+        // 한글은 자동으로 mono로 폴백돼 가독성 유지.
+        display: [
+          "var(--font-display)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace",
+        ],
       },
       letterSpacing: {
         arcade: "0.18em",         // 일반 캡스 라벨

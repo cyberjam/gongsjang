@@ -65,7 +65,7 @@ export default function RankingTabs({ records, activeType }: Props) {
       {/* SCOREBOARD */}
       <div className="arcade-scanlines arcade-card overflow-hidden border-2">
         <div className="border-b border-arcade-border bg-arcade-bg/40 px-3 py-2">
-          <div className="flex items-center justify-between text-[10px] tracking-arcade-wide text-zinc-500">
+          <div className="font-display flex items-center justify-between text-base leading-none tracking-[0.18em] text-zinc-500">
             <span>HIGH SCORE</span>
             <span className="text-arcade-accent">
               {RECORD_TYPES.find((t) => t.value === type)?.label.toUpperCase()}
@@ -92,16 +92,16 @@ function ChampionCard({ champion, unit }: { champion: RecordRow; unit: string })
     <div className="relative border-b border-arcade-accent/30 px-4 py-5 text-center">
       <div className="absolute inset-x-0 top-0 mx-auto h-px w-2/3 bg-gradient-to-r from-transparent via-arcade-accent to-transparent" />
 
-      <div className="text-[10px] tracking-arcade-xwide text-arcade-accent">
+      <div className="font-display text-base leading-none tracking-[0.16em] text-arcade-accent">
         ★ ROUND CHAMPION ★
       </div>
 
-      <div className="arcade-glow-gold mt-3 truncate text-3xl font-black tracking-[0.08em] text-arcade-accent">
+      <div className="arcade-glow-gold font-display mt-3 truncate text-4xl leading-none tracking-[0.04em] text-arcade-accent">
         {champion.nickname}
       </div>
 
       <div className="mt-3 flex items-baseline justify-center gap-1">
-        <span className="arcade-glow-gold text-5xl font-black leading-none text-arcade-accent">
+        <span className="arcade-glow-gold font-display text-[4.25rem] leading-none text-arcade-accent tabular-nums">
           {champion.value.toLocaleString()}
         </span>
         <span className="text-xs tracking-wider text-zinc-400">{unit}</span>
@@ -179,7 +179,7 @@ function ChallengerList({
           >
             <div className="flex min-w-0 items-center gap-3">
               <span
-                className={`w-8 shrink-0 text-right font-bold tabular-nums ${colorClass}`}
+                className={`font-display w-8 shrink-0 text-right text-base leading-none tabular-nums ${colorClass}`}
               >
                 #{String(rank).padStart(2, "0")}
               </span>
@@ -201,7 +201,7 @@ function ChallengerList({
               )}
             </div>
             <div className="text-right tabular-nums">
-              <div className={`font-bold ${colorClass}`}>
+              <div className={`font-display text-lg leading-none ${colorClass}`}>
                 {r.value.toLocaleString()}
                 <span className="ml-0.5 text-[10px] text-zinc-400">{unit}</span>
               </div>
