@@ -181,7 +181,7 @@ body {
 .arcade-rank-2 { color: #d6d6d6; }
 .arcade-rank-3 { color: #cd7f32; }
 
-/* === Map markers — 철봉 픽토그램 + 네온 프레임 === */
+/* === Map markers — 월드맵 오브젝트 (mini neon object) === */
 .gj-marker {
   position: relative;
   display: flex;
@@ -192,147 +192,107 @@ body {
   -webkit-user-select: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   transform-origin: bottom center;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  /* 살짝 바운싱 — selected 시만 의미 있음 */
+  transition: transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1), filter 0.18s ease;
   --tier-color: #ffd23f;
   --tier-rgb: 255, 210, 63;
 }
-.gj-marker[data-tier="new"]    { --tier-color: #39ff14; --tier-rgb: 57, 255, 20; }
-.gj-marker[data-tier="hot"]    { --tier-color: #ff3864; --tier-rgb: 255, 56, 100; }
+.gj-marker[data-tier="new"] { --tier-color: #39ff14; --tier-rgb: 57, 255, 20; }
+.gj-marker[data-tier="hot"] { --tier-color: #ff3864; --tier-rgb: 255, 56, 100; }
 
-.gj-marker:active { transform: scale(0.96); }
+.gj-marker:active { transform: scale(0.95); transition-duration: 80ms; }
 
-/* 코너 칩 — ★N / NEW (항상 보임, 작게) */
+/* 코너 칩 — 사각 pill, 그림자 최소화 */
 .gj-marker-chip {
   position: absolute;
-  top: -8px;
-  right: -10px;
+  top: -7px;
+  right: -9px;
   z-index: 1;
-  min-width: 18px;
-  padding: 1px 5px;
-  background: rgba(21, 21, 31, 0.96);
+  min-width: 16px;
+  padding: 1px 4px;
+  background: rgba(10, 10, 15, 0.92);
   border: 1px solid var(--tier-color);
-  border-radius: 9px;
+  border-radius: 3px;
   color: var(--tier-color);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.35;
   white-space: nowrap;
-  box-shadow:
-    0 0 6px rgba(var(--tier-rgb), 0.55),
-    0 2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 4px rgba(var(--tier-rgb), 0.35);
 }
 .gj-marker-chip[data-variant="new"] {
   font-size: 8px;
-  letter-spacing: 0.1em;
-  padding: 1px 4px;
+  letter-spacing: 0.12em;
 }
 
-/* 철봉 아이콘 (Π) + 네온 프레임 */
+/* 아이콘 — 작은 오브젝트 (테두리 반투명, soft glow 1단) */
 .gj-marker-icon {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(21, 21, 31, 0.95);
-  border: 2px solid var(--tier-color);
-  border-radius: 5px;
+  background: rgba(10, 10, 15, 0.88);
+  border: 1px solid rgba(var(--tier-rgb), 0.55);
+  border-radius: 4px;
   color: var(--tier-color);
-  box-shadow:
-    0 0 10px rgba(var(--tier-rgb), 0.55),
-    inset 0 0 5px rgba(var(--tier-rgb), 0.2),
-    0 4px 10px rgba(0, 0, 0, 0.6);
-  transition: box-shadow 0.18s ease, transform 0.18s ease, border-width 0.18s;
+  box-shadow: 0 0 8px rgba(var(--tier-rgb), 0.35);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .gj-marker-icon svg {
-  width: 22px;
-  height: 22px;
-  filter: drop-shadow(0 0 4px rgba(var(--tier-rgb), 0.85));
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 0 3px rgba(var(--tier-rgb), 0.7));
 }
 
-/* 코너 픽셀 (프레임 강조) */
-.gj-marker-icon::before,
-.gj-marker-icon::after {
-  content: "";
-  position: absolute;
+/* 지면 도트 — 작게, 외곽 링 제거 */
+.gj-marker-base {
+  margin-top: 2px;
   width: 4px;
   height: 4px;
   background: var(--tier-color);
-  box-shadow: 0 0 4px rgba(var(--tier-rgb), 0.9);
-}
-.gj-marker-icon::before { top: -2px; left: -2px; }
-.gj-marker-icon::after { bottom: -2px; right: -2px; }
-
-/* 지면 앵커 */
-.gj-marker-base {
-  margin-top: 3px;
-  width: 6px;
-  height: 6px;
-  background: var(--tier-color);
   border-radius: 50%;
-  box-shadow:
-    0 0 8px rgba(var(--tier-rgb), 0.95),
-    0 0 0 2px rgba(10, 10, 15, 0.6);
+  box-shadow: 0 0 5px rgba(var(--tier-rgb), 0.7);
 }
 
-/* HOT — 펄스 */
+/* HOT — 색·글로우만 살짝 강하게 (펄스 없음) */
 .gj-marker[data-tier="hot"] .gj-marker-icon {
-  animation: gj-pulse-icon 1.6s ease-in-out infinite;
+  border-color: rgba(var(--tier-rgb), 0.7);
+  box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.55);
 }
 
-@keyframes gj-pulse-icon {
-  0%, 100% { transform: scale(1); }
-  50% {
-    transform: scale(1.08);
-    box-shadow:
-      0 0 16px rgba(var(--tier-rgb), 0.85),
-      inset 0 0 6px rgba(var(--tier-rgb), 0.35),
-      0 4px 14px rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* SELECTED — 크게, 글로우 강, 외곽 펄스 링 */
+/* SELECTED — 약간 확대 + 보더 선명 + 외곽 펄스 링 */
 .gj-marker[data-selected="true"] {
   transform: scale(1.18);
   z-index: 10;
-  filter: brightness(1.1);
 }
 .gj-marker[data-selected="true"] .gj-marker-icon {
-  border-width: 3px;
+  border-color: var(--tier-color);
   box-shadow:
-    0 0 22px rgba(var(--tier-rgb), 0.9),
-    inset 0 0 8px rgba(var(--tier-rgb), 0.45),
-    0 6px 18px rgba(0, 0, 0, 0.7);
+    0 0 14px rgba(var(--tier-rgb), 0.7),
+    inset 0 0 4px rgba(var(--tier-rgb), 0.3);
 }
 .gj-marker[data-selected="true"] .gj-marker-icon > svg {
-  filter: drop-shadow(0 0 6px rgba(var(--tier-rgb), 0.95));
+  filter: drop-shadow(0 0 5px rgba(var(--tier-rgb), 0.9));
 }
-.gj-marker[data-selected="true"] .gj-marker-card {
-  border-color: var(--tier-color);
-  box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.5);
-}
-/* 외곽 펄스 링 — selected에서만 */
-.gj-marker[data-selected="true"] .gj-marker-icon::before,
-.gj-marker[data-selected="true"] .gj-marker-icon::after {
-  width: 6px;
-  height: 6px;
-}
+
+/* 외곽 펄스 링 — selected 전용 */
 .gj-marker-icon-ring {
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border: 1px solid var(--tier-color);
-  border-radius: 8px;
+  border-radius: 6px;
   opacity: 0;
   pointer-events: none;
 }
 .gj-marker[data-selected="true"] .gj-marker-icon-ring {
-  animation: gj-selected-ring 1.4s ease-out infinite;
+  animation: gj-selected-ring 1.6s ease-out infinite;
 }
 @keyframes gj-selected-ring {
-  0%   { transform: scale(1);   opacity: 0.7; }
-  100% { transform: scale(1.6); opacity: 0; }
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
 
 /* === Locate button (GPS 레이더) === */
