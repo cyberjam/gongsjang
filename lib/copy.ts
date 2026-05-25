@@ -180,13 +180,22 @@ export const COPY = {
 
   // === 푸터 / 태그라인 ===
   tagline: [
-    "동네 은둔고수의 기록을 깨라",
+    "동네 철봉 도장깨기",
+    "은둔고수의 기록을 깨라",
     "현실의 도장깨기",
-    "INSERT COIN",
+    "INSERT COIN · 공스장",
     "거리에 흔적을 남겨라",
     "이름을 새겨라",
     "STREET RANKING",
   ],
+
+  // === 브랜드 ===
+  brand: {
+    kr: "공스장",
+    en: "GONGSJANG",
+    tagline: "동네 철봉 도장깨기",
+    full: "공스장 — 동네 철봉 도장깨기",
+  },
 
   // === NEW! 같은 짧은 배지 ===
   badges: {
