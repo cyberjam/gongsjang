@@ -71,26 +71,59 @@ export function distanceM(a, b) {
 }
 
 // ─── 동/도로명 추출 ─────────────────────────────────────────────────
-const DONG_RE = /([가-힣]+(?:동|읍|면))/;
+// 도로명에는 동이 없는 경우가 많음 (예: "율량로 100").
+// rdnmadr → lnmadr 순으로 시도해 ○○동/읍/면을 찾는다.
+const DONG_RE = /([가-힣]+(?:동|읍|면))(?:\b|[^가-힣])/;
 
-export function extractDong(address) {
-  if (!address) return null;
-  return address.match(DONG_RE)?.[1] ?? null;
+export function extractDong(...addresses) {
+  for (const addr of addresses) {
+    if (!addr) continue;
+    const m = addr.match(DONG_RE);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 // ─── 장소명 생성 규칙 ──────────────────────────────────────────────
-// 우선순위:
-//   1) 100m 이내 도시공원이 있으면 → "○○공원 철봉"
-//   2) 설치장소명에 의미 있는 키워드(공원/광장/체육 등)가 있으면 → "{설치장소명} 철봉"
-//   3) 도로명 주소에서 동 추출 → "{○○동} 철봉"
-//   4) fallback → "동네 철봉"
+// 결과: { name, source, generic, original }
+//   source: 'park' | 'place' | 'dong' | null
+//   generic: true면 큐레이션 필요 (이름이 무미건조)
+//   original: 자동 생성 전 instlPlaceNm (before/after 비교용)
 //
-// 의도: 자동으로 "○○동 야외운동기구 1번" 같은 무미건조한 이름을 피하고
-// "도장스러운" 이름을 생성. 그래도 마지막엔 사용자 수동 큐레이션 필요.
+// 우선순위:
+//   1) 120m 이내 도시공원이 있으면 → "○○공원 철봉" (generic: false)
+//   2) 설치장소명이 의미 키워드 포함 → "{설치장소명} 철봉" (generic: false)
+//   3) 설치장소명 있지만 generic blocklist → 동 fallback으로 (generic: true)
+//   4) 도로명 동 → "{○○동} 철봉" (generic: true)
+//   5) 이름 못 만들면 null (시드 제외)
+//
+// 의도: "체육시설 1번" "야외운동기구" 같은 무미건조한 이름을
+//        대신 공원·산책로·동 단위로 재명명. 그래도 큐레이션은 사용자 몫.
 
-const PLACE_KEYWORDS = /(공원|광장|체육|운동|놀이터|호수|광장|쉼터|마당)/;
+const PLACE_KEYWORDS = /(공원|광장|체육관|놀이터|호수|쉼터|마당|문화|광장|산책로|둘레길|체력단련장)/;
+
+// 너무 generic해서 그대로 쓰면 안 되는 설치장소명 (rename 대상)
+const GENERIC_PLACE_BLOCKLIST = [
+  /^운동기구$/,
+  /^체육시설$/,
+  /^야외운동기구$/,
+  /^근린운동기구$/,
+  /^운동시설$/,
+  /^체육관$/,
+  /^주민운동시설$/,
+  /^야외체육시설$/,
+  /^운동장$/,
+  /^생활체육시설$/,
+  /^야외생활체육시설$/,
+];
+
+function isGenericPlace(name) {
+  return GENERIC_PLACE_BLOCKLIST.some((re) => re.test(name));
+}
 
 export function buildName({ instlPlaceNm, rdnmadr, lnmadr, lat, lng, parks }) {
+  const original = (instlPlaceNm ?? "").trim() || null;
+
   // 1) 가까운 공원
   if (parks?.length) {
     let best = null;
@@ -103,26 +136,33 @@ export function buildName({ instlPlaceNm, rdnmadr, lnmadr, lat, lng, parks }) {
       }
     }
     if (best && bestD <= 120) {
-      return `${best.name} 철봉`;
+      return {
+        name: /철봉/.test(best.name) ? best.name : `${best.name} 철봉`,
+        source: "park",
+        generic: false,
+        original,
+      };
     }
   }
 
-  // 2) 설치장소명
-  const place = (instlPlaceNm ?? "").trim();
-  if (place && place.length > 1 && place !== "운동기구") {
-    if (PLACE_KEYWORDS.test(place)) {
-      // 이미 의미 있는 장소명 → 철봉 접미사
-      return /철봉/.test(place) ? place : `${place} 철봉`;
+  // 2) 설치장소명 (의미 키워드 + non-generic)
+  if (original && original.length > 1 && !isGenericPlace(original)) {
+    if (PLACE_KEYWORDS.test(original)) {
+      const name = /철봉/.test(original) ? original : `${original} 철봉`;
+      return { name, source: "place", generic: false, original };
     }
-    return `${place} 철봉`;
+    // 의미 키워드 없는 자유 입력 — 일단 채택하되 generic 표시 (검토 권장)
+    return { name: `${original} 철봉`, source: "place", generic: true, original };
   }
 
-  // 3) 동
-  const dong = extractDong(rdnmadr ?? lnmadr);
-  if (dong) return `${dong} 철봉`;
+  // 3+4) 동 fallback (도로명 → 지번 순차 시도)
+  const dong = extractDong(rdnmadr, lnmadr);
+  if (dong) {
+    return { name: `${dong} 철봉`, source: "dong", generic: true, original };
+  }
 
-  // 4) fallback
-  return "동네 철봉";
+  // 5) 시드 제외
+  return { name: null, source: null, generic: true, original };
 }
 
 // ─── 외부 ID 생성 ──────────────────────────────────────────────────

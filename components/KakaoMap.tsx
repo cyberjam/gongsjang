@@ -158,7 +158,8 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         // 이미 만든 맵이 있으면 그대로 재사용 (StrictMode 등에서 안전)
         if (!mapRef.current) {
           const map = new kakao.maps.Map(containerRef.current, {
-            center: new kakao.maps.LatLng(37.5665, 126.978),
+            // 기본 중심: 청주시청 (활성 지역 청주·오송 기준)
+            center: new kakao.maps.LatLng(36.6424, 127.489),
             level: 5,
           });
           mapRef.current = map;
