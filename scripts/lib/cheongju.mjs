@@ -20,8 +20,26 @@ export function inCheongjuBbox(lat, lng) {
   );
 }
 
+// ─── 실외운동기구 raw → 내부 표준 형태 normalize ───────────────────
+// data.go.kr 실외운동기구 표준데이터(15139207) 실제 필드명:
+//   instlPlcNm(설치장소명) / sprtgdNm(운동기구명) / sprtgdQty(수량)
+//   lat(위도) / lot(경도) / lctnRoadNmAddr(도로명) / lctnLotnoAddr(지번)
+// 다른 지자체/버전이 표준 약어를 쓸 수도 있어 fallback 도 둔다.
+export function normalizeEqmt(raw) {
+  return {
+    exrcEqmtNm: raw.sprtgdNm ?? raw.exrcEqmtNm ?? raw.exercNm ?? null,
+    exrcEqmtQty: raw.sprtgdQty ?? raw.exrcEqmtQty ?? null,
+    latitude: raw.lat ?? raw.latitude ?? raw.la ?? null,
+    longitude: raw.lot ?? raw.longitude ?? raw.lo ?? null,
+    rdnmadr: raw.lctnRoadNmAddr ?? raw.rdnmadr ?? null,
+    lnmadr: raw.lctnLotnoAddr ?? raw.lnmadr ?? null,
+    instlPlaceNm: raw.instlPlcNm ?? raw.instlPlaceNm ?? null,
+  };
+}
+
 // ─── 철봉 가능 기구 키워드 ─────────────────────────────────────────
-// 운동기구명(exrcEqmtNm)이 다음 중 하나에 매치되면 시드 후보로 채택.
+// 운동기구명이 "허리돌리기+사이클+거꾸로매달리기" 처럼 + 로 묶이므로
+// 토큰 단위로 검사. "거꾸로매달리기"(거꾸리)는 철봉 아님 → 제외.
 const PULLUP_PATTERNS = [
   /철\s*봉/,
   /턱\s*걸이/,
@@ -31,10 +49,24 @@ const PULLUP_PATTERNS = [
   /pull[\s_-]?up/i,
   /chin[\s_-]?up/i,
 ];
+const EXCLUDE_TOKEN = /거꾸로|거꾸리|역기|허리|사이클|스텝|윗몸|복근|하늘|노젓기|온몸|어깨|발/;
 
 export function matchesPullup(name) {
   if (!name || typeof name !== "string") return false;
-  return PULLUP_PATTERNS.some((re) => re.test(name));
+  const tokens = name.split(/[+,/·]/).map((t) => t.trim()).filter(Boolean);
+  return tokens.some((tok) => {
+    if (EXCLUDE_TOKEN.test(tok)) return false; // 비철봉 기구 토큰 제외
+    return PULLUP_PATTERNS.some((re) => re.test(tok));
+  });
+}
+
+// 운동기구명에서 철봉 관련 토큰만 추출 (description 정리용)
+export function pullupTokens(name) {
+  if (!name || typeof name !== "string") return [];
+  return name
+    .split(/[+,/·]/)
+    .map((t) => t.trim())
+    .filter((tok) => !EXCLUDE_TOKEN.test(tok) && PULLUP_PATTERNS.some((re) => re.test(tok)));
 }
 
 // ─── 우선 동네 (도장 밀도 큐레이션 시 참고) ────────────────────────

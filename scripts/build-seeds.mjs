@@ -16,7 +16,9 @@ import {
   extractDong,
   inCheongjuBbox,
   matchesPullup,
+  normalizeEqmt,
   priorityScore,
+  pullupTokens,
   PRIORITY_DONGS,
 } from "./lib/cheongju.mjs";
 
@@ -54,8 +56,8 @@ if (!Array.isArray(rawEqmtsRaw) || rawEqmtsRaw.length === 0) {
 console.log("=== 원본 필드 진단 (실외운동기구 첫 항목) ===");
 console.log("  keys:", Object.keys(rawEqmtsRaw[0]).join(", "));
 console.log("  sample:", JSON.stringify(rawEqmtsRaw[0]).slice(0, 400));
-console.log("\n  스크립트가 기대하는 필드: exrcEqmtNm, latitude, longitude, rdnmadr, lnmadr, instlPlaceNm");
-console.log("  → 위 keys 와 다르면 lib/cheongju.mjs / build-seeds.mjs 의 필드명 매핑 수정 필요\n");
+console.log("\n  normalizeEqmt 매핑: sprtgdNm→운동기구명, lat/lot→좌표, lctnRoadNmAddr/lctnLotnoAddr→주소, instlPlcNm→설치장소");
+console.log("  (표준 약어 latitude/longitude/exrcEqmtNm 도 fallback 처리)\n");
 
 if (Array.isArray(rawParksRaw) && rawParksRaw[0]) {
   console.log("=== 원본 필드 진단 (도시공원 첫 항목) ===");
@@ -87,7 +89,8 @@ const candidates = [];
 // 키워드 통과했지만 좌표/bbox에서 빠진 표본 (진단용)
 const sampleKeywordPass = [];
 
-for (const eqmt of rawEqmts) {
+for (const rawEqmt of rawEqmts) {
+  const eqmt = normalizeEqmt(rawEqmt);
   if (!matchesPullup(eqmt.exrcEqmtNm)) { stats.skipKeyword++; continue; }
   if (sampleKeywordPass.length < 3) sampleKeywordPass.push(eqmt);
   const lat = asNum(eqmt.latitude);
@@ -95,13 +98,17 @@ for (const eqmt of rawEqmts) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) { stats.skipCoord++; continue; }
   if (!inCheongjuBbox(lat, lng)) { stats.skipBbox++; continue; }
 
+  // description 은 철봉 관련 토큰만 추출 (비철봉 기구 노이즈 제거)
+  const tokens = pullupTokens(eqmt.exrcEqmtNm);
+  const eqmtLabel = tokens.length ? tokens.join(", ") : "철봉";
+
   candidates.push({
     raw: eqmt,
     lat, lng,
     address: eqmt.rdnmadr || eqmt.lnmadr || null,
     rdnmadr: eqmt.rdnmadr || null,
     lnmadr: eqmt.lnmadr || null,
-    eqmtName: eqmt.exrcEqmtNm,
+    eqmtName: eqmtLabel,
     eqmtQty: Number(eqmt.exrcEqmtQty) || 1,
     instlPlaceNm: eqmt.instlPlaceNm,
     externalId: eqmtExternalId(eqmt),
