@@ -38,8 +38,20 @@ const asNum = (v) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+// ─── 0. 입력 검증 — 0건이면 의미 있는 에러 ─────────────────────
+const rawEqmtsRaw = loadJson(RAW_EQMT);
+const rawParksRaw = loadJson(RAW_PARKS);
+if (!Array.isArray(rawEqmtsRaw) || rawEqmtsRaw.length === 0) {
+  console.error(
+    `❌ ${RAW_EQMT} 가 비어있습니다 (${rawEqmtsRaw?.length ?? 0}건).\n` +
+      "   API returned 0 rows — likely invalid key or encoding issue\n" +
+      "   npm run seed:fetch 다시 실행해서 에러 로그 확인.\n",
+  );
+  process.exit(2);
+}
+
 // ─── 1. 공원 인덱스 ─────────────────────────────────────────────
-const rawParks = loadJson(RAW_PARKS);
+const rawParks = rawParksRaw;
 const parks = rawParks
   .map((p) => ({
     name: (p.parkNm || p.parkNmKor || "").trim(),
@@ -49,7 +61,7 @@ const parks = rawParks
   .filter((p) => p.name && inCheongjuBbox(p.lat, p.lng));
 
 // ─── 2. 철봉 후보 필터 ──────────────────────────────────────────
-const rawEqmts = loadJson(RAW_EQMT);
+const rawEqmts = rawEqmtsRaw;
 
 const stats = {
   totalRaw: rawEqmts.length,
