@@ -79,19 +79,22 @@ export function extractDong(address) {
 }
 
 // ─── 장소명 생성 규칙 ──────────────────────────────────────────────
-// 우선순위:
-//   1) 100m 이내 도시공원이 있으면 → "○○공원 철봉"
-//   2) 설치장소명에 의미 있는 키워드(공원/광장/체육 등)가 있으면 → "{설치장소명} 철봉"
-//   3) 도로명 주소에서 동 추출 → "{○○동} 철봉"
-//   4) fallback → "동네 철봉"
+// 결과 객체: { name, source, generic }
+//   source: 'park' | 'place' | 'dong' | 'fallback'
+//   generic: true면 큐레이션 필요 (배포 전 손봐야 도장스러움)
 //
-// 의도: 자동으로 "○○동 야외운동기구 1번" 같은 무미건조한 이름을 피하고
-// "도장스러운" 이름을 생성. 그래도 마지막엔 사용자 수동 큐레이션 필요.
+// 우선순위:
+//   1) 100m 이내 도시공원 → "○○공원 철봉" (generic: false — 인지 가능)
+//   2) 설치장소명 + 의미 키워드 → "{설치장소명} 철봉" (generic: false)
+//   3) 설치장소명만 있음 → "{설치장소명} 철봉" (generic: true, 톤 검토 필요)
+//   4) 도로명 동 → "{○○동} 철봉" (generic: true)
+//   5) fallback → null (시드에서 제외하는 신호)
 
-const PLACE_KEYWORDS = /(공원|광장|체육|운동|놀이터|호수|광장|쉼터|마당)/;
+const PLACE_KEYWORDS = /(공원|광장|체육|운동|놀이터|호수|쉼터|마당|체육관|체력|문화|쉴터|쉴공간)/;
+const GENERIC_PLACE_BLOCKLIST = /^(?:운동기구|체육시설|근린운동기구|야외운동기구|동네\s?철봉)$/;
 
 export function buildName({ instlPlaceNm, rdnmadr, lnmadr, lat, lng, parks }) {
-  // 1) 가까운 공원
+  // 1) 가까운 공원 (가장 명확한 이름)
   if (parks?.length) {
     let best = null;
     let bestD = Infinity;
@@ -103,26 +106,27 @@ export function buildName({ instlPlaceNm, rdnmadr, lnmadr, lat, lng, parks }) {
       }
     }
     if (best && bestD <= 120) {
-      return `${best.name} 철봉`;
+      return { name: `${best.name} 철봉`, source: "park", generic: false };
     }
   }
 
-  // 2) 설치장소명
+  // 2~3) 설치장소명
   const place = (instlPlaceNm ?? "").trim();
-  if (place && place.length > 1 && place !== "운동기구") {
+  if (place && place.length > 1 && !GENERIC_PLACE_BLOCKLIST.test(place)) {
     if (PLACE_KEYWORDS.test(place)) {
-      // 이미 의미 있는 장소명 → 철봉 접미사
-      return /철봉/.test(place) ? place : `${place} 철봉`;
+      const name = /철봉/.test(place) ? place : `${place} 철봉`;
+      return { name, source: "place", generic: false };
     }
-    return `${place} 철봉`;
+    // 의미 키워드 없음 — generic 표시
+    return { name: `${place} 철봉`, source: "place", generic: true };
   }
 
-  // 3) 동
+  // 4) 동 fallback
   const dong = extractDong(rdnmadr ?? lnmadr);
-  if (dong) return `${dong} 철봉`;
+  if (dong) return { name: `${dong} 철봉`, source: "dong", generic: true };
 
-  // 4) fallback
-  return "동네 철봉";
+  // 5) 이름 못 만듦 → 호출자가 결정 (제외 권장)
+  return { name: null, source: "fallback", generic: true };
 }
 
 // ─── 외부 ID 생성 ──────────────────────────────────────────────────

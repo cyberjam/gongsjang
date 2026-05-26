@@ -21,16 +21,16 @@ export default async function RecordPage({ params }: { params: { id: string } })
     <div className="arcade-fade-in px-4 py-4">
       <Link
         href={`/locations/${loc.id}`}
-        className="inline-flex items-center gap-1 text-[10px] tracking-[0.2em] text-zinc-400 hover:text-arcade-accent"
+        className="inline-flex items-center gap-1 text-[10px] tracking-arcade text-arcade-muted hover:text-arcade-phosphor"
       >
         <span>←</span>
         <span className="truncate">{loc.name}</span>
       </Link>
 
-      <h1 className="arcade-title font-display mt-2 text-2xl leading-none text-arcade-accent">
+      <h1 className="arcade-title font-display mt-2 text-2xl leading-none text-arcade-phosphor2">
         ENTER YOUR SCORE
       </h1>
-      <p className="mb-4 text-[11px] text-zinc-400">
+      <p className="mb-4 text-[11px] text-arcade-muted">
         오락실 점수판처럼, 닉네임과 기록만 남기면 끝.
       </p>
 

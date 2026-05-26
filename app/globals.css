@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 html, body {
-  background: #0a0a0f;
-  color: #f4f4f5;
+  background: #050507;
+  color: #cfe7d3; /* 기본 텍스트 — 옅은 인광 톤 */
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -36,9 +36,9 @@ body {
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {
-    outline: 2px solid #ffd23f;
+    outline: 1px solid #39ff14;
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 }
 
@@ -46,16 +46,16 @@ body {
 @layer components {
   /* ── CARDS ──────────────────────────────────── */
   .arcade-card {
-    @apply relative rounded border border-arcade-border bg-arcade-panel;
+    @apply relative rounded-sm border border-arcade-border bg-arcade-panel;
   }
   .arcade-card-feature {
-    @apply arcade-card border-2 border-arcade-accent shadow-arcade-glow;
+    @apply arcade-card border-arcade-phosphor3;
   }
   .arcade-card-tap {
     @apply arcade-card transition duration-150 ease-out;
   }
   .arcade-card-tap:hover {
-    @apply border-arcade-accent/70 shadow-arcade-card-hover;
+    @apply border-arcade-phosphor3;
   }
   .arcade-card-tap:active {
     transform: translateY(1px) scale(0.997);
@@ -64,23 +64,23 @@ body {
 
   /* ── STAT BOX (카드 안쪽 작은 칸) ────────────── */
   .arcade-stat {
-    @apply rounded border border-arcade-border bg-arcade-bg/60 px-3 py-2;
+    @apply rounded-sm border border-arcade-border bg-arcade-inset px-3 py-2;
   }
 
   /* ── LABEL (캡스 트래킹 캡션) ───────────────── */
   .arcade-label {
-    @apply text-[9px] uppercase tracking-arcade text-zinc-500;
+    @apply text-[9px] uppercase tracking-arcade text-arcade-muted;
   }
   .arcade-label-wide {
-    @apply text-[9px] uppercase tracking-arcade-wide text-zinc-500;
+    @apply text-[9px] uppercase tracking-arcade-wide text-arcade-muted;
   }
 
   /* ── DIVIDER ────────────────────────────────── */
   .arcade-divider {
-    @apply mx-auto h-px w-full bg-gradient-to-r from-transparent via-arcade-border to-transparent;
+    @apply h-px w-full bg-arcade-border;
   }
   .arcade-divider-accent {
-    @apply mx-auto h-px w-full bg-gradient-to-r from-transparent via-arcade-accent to-transparent;
+    @apply h-px w-full bg-arcade-phosphor3;
   }
 
   /* ── BUTTONS ────────────────────────────────── */
@@ -97,52 +97,44 @@ body {
     @apply pointer-events-none opacity-50;
   }
 
+  /* Primary CTA — 그린 outline (CRT 톤). 마스터에만 양보. */
   .arcade-btn-primary {
-    @apply arcade-btn rounded border-2 border-arcade-accent bg-arcade-accent font-bold text-arcade-bg shadow-arcade-glow;
+    @apply arcade-btn rounded-sm border border-arcade-phosphor bg-transparent font-bold text-arcade-phosphor;
   }
   .arcade-btn-primary:hover {
-    @apply shadow-arcade-glow-lg;
+    @apply bg-arcade-phosphor/10;
   }
-  .arcade-btn-primary::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      115deg,
-      transparent 35%,
-      rgba(255, 255, 255, 0.28) 50%,
-      transparent 65%
-    );
-    transform: translateX(-110%);
-    transition: transform 0.55s ease;
+
+  /* Amber 솔리드 — 마스터 도전 같은 결정적 액션 */
+  .arcade-btn-amber {
+    @apply arcade-btn rounded-sm border border-arcade-amber bg-arcade-amber font-bold text-arcade-bg;
   }
-  .arcade-btn-primary:hover::before {
-    transform: translateX(110%);
+  .arcade-btn-amber:hover {
+    @apply brightness-95;
   }
 
   .arcade-btn-ghost {
-    @apply arcade-btn rounded border border-arcade-border bg-arcade-panel text-zinc-200;
+    @apply arcade-btn rounded-sm border border-arcade-border bg-transparent text-zinc-300;
   }
   .arcade-btn-ghost:hover {
-    @apply border-arcade-accent text-arcade-accent shadow-arcade-glow-sm;
+    @apply border-arcade-phosphor3 text-arcade-phosphor2;
   }
 
   .arcade-btn-neon {
-    @apply arcade-btn rounded border border-arcade-neon bg-arcade-panel/90 text-arcade-neon shadow-arcade-glow-neon;
+    @apply arcade-btn rounded-sm border border-arcade-phosphor3 bg-arcade-panel/90 text-arcade-phosphor;
   }
   .arcade-btn-neon:hover {
-    @apply shadow-arcade-glow-neon-lg;
+    @apply border-arcade-phosphor;
   }
 
   /* ── CHIP / BADGE ───────────────────────────── */
   .arcade-chip {
-    @apply inline-flex select-none items-center rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-arcade transition;
+    @apply inline-flex select-none items-center rounded-sm border px-1.5 py-0.5 text-[9px] font-bold tracking-arcade transition;
   }
 
-  /* ── INPUT (form fields) ────────────────────── */
+  /* ── INPUT ─────────────────────────────────── */
   .arcade-input {
-    @apply w-full rounded border border-arcade-border bg-arcade-panel px-3 py-2 text-sm transition focus:border-arcade-accent focus:shadow-arcade-glow-sm focus:outline-none;
+    @apply w-full rounded-sm border border-arcade-border bg-arcade-inset px-3 py-2 text-sm transition focus:border-arcade-phosphor focus:outline-none;
   }
 }
 
@@ -171,15 +163,20 @@ body {
   }
 }
 
-/* 오락실 점수판 느낌 */
+/* 오락실 점수판 — glow 거의 없음, 트래킹만 */
 .arcade-title {
-  letter-spacing: 0.08em;
-  text-shadow: 0 0 8px rgba(255, 210, 63, 0.4);
+  letter-spacing: 0.06em;
 }
 
-.arcade-rank-1 { color: #ffd23f; }
-.arcade-rank-2 { color: #d6d6d6; }
-.arcade-rank-3 { color: #cd7f32; }
+/* 마스터/점수 컬러 */
+.arcade-rank-1 { color: #ffb000; } /* 앰버 — 마스터 */
+.arcade-rank-2 { color: #cfe7d3; } /* 옅은 그린 */
+.arcade-rank-3 { color: #7a8c80; } /* 옅은 회녹 */
+
+/* 마스터 ★ 고수 (30일+) 한정 약한 phosphor 잔상 */
+.arcade-master-30 {
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
+}
 
 /* === Map markers — 월드맵 오브젝트 (mini neon object) === */
 .gj-marker {
@@ -194,11 +191,11 @@ body {
   transform-origin: bottom center;
   /* 살짝 바운싱 — selected 시만 의미 있음 */
   transition: transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1), filter 0.18s ease;
-  --tier-color: #ffd23f;
-  --tier-rgb: 255, 210, 63;
+  --tier-color: #39ff14;       /* default: 인광 그린 */
+  --tier-rgb: 57, 255, 20;
 }
-.gj-marker[data-tier="new"] { --tier-color: #39ff14; --tier-rgb: 57, 255, 20; }
-.gj-marker[data-tier="hot"] { --tier-color: #ff3864; --tier-rgb: 255, 56, 100; }
+.gj-marker[data-tier="new"]  { --tier-color: #5dd472; --tier-rgb: 93, 212, 114; } /* 옅은 그린 */
+.gj-marker[data-tier="hot"]  { --tier-color: #ffb000; --tier-rgb: 255, 176, 0; }  /* 앰버 — 도장 주인 있음 */
 
 .gj-marker:active { transform: scale(0.95); transition-duration: 80ms; }
 
