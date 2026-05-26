@@ -48,9 +48,12 @@ function maskKey(k) {
 }
 
 const BASE = "https://api.data.go.kr/openapi";
-const REGION = { ctprvnNm: "충청북도", signguNm: "청주시" };
+// data.go.kr 예시 URL이 보여주는 정식 패턴: serviceKey + pageNo + numOfRows + type 만.
+// ctprvnNm/signguNm 같은 region 필터를 추가하면 endpoint가 'INVALID_REQUEST_PARAMETER_ERROR' 로
+// 거부하므로 전국 raw 를 받아 build-seeds 의 inCheongjuBbox 로 로컬 필터한다.
 const PAGE_SIZE = 1000;
-const START_PAGE = 1; // data.go.kr 표준데이터는 항상 1부터
+const START_PAGE = 1;
+const MAX_PAGES = 200; // 안전장치 (총 20만건까지)
 
 function buildUrl(endpoint, paramsObj) {
   // serviceKey 외 파라미터는 URLSearchParams 가 자동 encode (한글 등 정상 처리)
@@ -65,12 +68,12 @@ function buildMaskedUrl(endpoint, paramsObj) {
   return `${BASE}/${endpoint}?serviceKey=${maskKey(DECODED_KEY)}&${otherQs}`;
 }
 
-async function fetchPage(endpoint, params, pageNo) {
+async function fetchPage(endpoint, pageNo) {
+  // data.go.kr 예시 URL 패턴 정확히 일치: serviceKey + pageNo + numOfRows + type
   const paramsObj = {
-    type: "json",
     pageNo: String(pageNo),
     numOfRows: String(PAGE_SIZE),
-    ...params,
+    type: "json",
   };
   const url = buildUrl(endpoint, paramsObj);
   const maskedUrl = buildMaskedUrl(endpoint, paramsObj);
@@ -137,12 +140,12 @@ async function fetchPage(endpoint, params, pageNo) {
   return { items, totalCount };
 }
 
-async function fetchAllPages(endpoint, params) {
+async function fetchAllPages(endpoint) {
   const all = [];
   let pageNo = START_PAGE;
 
   while (true) {
-    const result = await fetchPage(endpoint, params, pageNo);
+    const result = await fetchPage(endpoint, pageNo);
     if (result.error) {
       console.error(`❌ ${result.error}`);
       if (result.status) console.error(`   HTTP ${result.status}  content-type=${result.ctype}`);
@@ -158,8 +161,8 @@ async function fetchAllPages(endpoint, params) {
     if (result.items.length === 0) break;
     if (all.length >= result.totalCount) break;
     pageNo++;
-    if (pageNo > 100) {
-      console.warn("  too many pages, stopping (안전장치)");
+    if (pageNo > MAX_PAGES) {
+      console.warn(`  too many pages (>${MAX_PAGES}), stopping (안전장치)`);
       break;
     }
   }
@@ -175,7 +178,7 @@ function diagnose(result) {
     console.error("     1. .env.local 의 DATA_GO_KR_API_KEY 에 인코딩된 키를 넣었음");
     console.error("        → '디코딩(decoded) 키'로 교체 (data.go.kr 마이페이지 → 활용신청 상세 → '일반 인증키 Decoding')");
     console.error("     2. 활용신청 승인 직후 — 5~10분 후 재시도");
-    console.error("     3. ctprvnNm/signguNm 표기 — 현재 '충청북도', '청주시' 사용 중");
+    console.error("     3. 알 수 없는 query 파라미터 — 본 스크립트는 region 필터 안 보냄");
   } else if (result.resultCode === "30" || result.resultCode === "22") {
     console.error("   서비스 키 등록되지 않음 — 활용신청 상태 확인");
   } else if (result.resultCode === "31") {
@@ -195,21 +198,17 @@ async function main() {
   console.log(`  env raw     : ${maskKey(RAW_KEY)}  ${looksEncoded ? "(URL-encoded로 감지됨)" : "(decoded로 간주)"}`);
   console.log(`  실제 사용   : ${maskKey(DECODED_KEY)}  → 요청 시 1회 encode\n`);
 
-  console.log("=== 1. 실외운동기구 (data.go.kr/data/15139207) ===");
-  const eqmts = await fetchAllPages(
-    "tn_pubr_public_outdoor_exercise_eqmt_api",
-    REGION,
-  );
+  console.log("=== 1. 실외운동기구 (data.go.kr/data/15139207, 전국) ===");
+  console.log("   ※ region 필터 없음 — build 단계에서 청주·오송 bbox 로 추림\n");
+  const eqmts = await fetchAllPages("tn_pubr_public_outdoor_exercise_eqmt_api");
+  // 파일명은 'cheongju' 유지하되 실제론 전국 raw. build 단계가 bbox 필터.
   writeFileSync(`${outDir}/cheongju-eqmt.json`, JSON.stringify(eqmts, null, 2));
-  console.log(`→ ${outDir}/cheongju-eqmt.json  (${eqmts.length}건)\n`);
+  console.log(`→ ${outDir}/cheongju-eqmt.json  (${eqmts.length}건, 전국 raw)\n`);
 
-  console.log("=== 2. 도시공원 (data.go.kr/data/15012890) ===");
-  const parks = await fetchAllPages(
-    "tn_pubr_public_cty_park_info_api",
-    REGION,
-  );
+  console.log("=== 2. 도시공원 (data.go.kr/data/15012890, 전국) ===");
+  const parks = await fetchAllPages("tn_pubr_public_cty_park_info_api");
   writeFileSync(`${outDir}/cheongju-parks.json`, JSON.stringify(parks, null, 2));
-  console.log(`→ ${outDir}/cheongju-parks.json  (${parks.length}건)\n`);
+  console.log(`→ ${outDir}/cheongju-parks.json  (${parks.length}건, 전국 raw)\n`);
 
   // 0건 명시적 경고
   if (eqmts.length === 0 || parks.length === 0) {
