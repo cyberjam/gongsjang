@@ -429,17 +429,17 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
         ) : (
           <div className="pointer-events-auto grid grid-cols-2 gap-2">
             <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
-              <div className="arcade-label">DOJOS</div>
-              <div className="font-display text-xl leading-none text-arcade-phosphor2 tabular-nums">
+              <div className="arcade-label">STAGES</div>
+              <div className="font-display text-xl leading-none text-arcade-accent tabular-nums">
                 {locations.length}
-                <span className="ml-1 text-[10px] text-arcade-muted">곳</span>
+                <span className="ml-1 text-[10px] text-zinc-400">곳</span>
               </div>
             </div>
             <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
-              <div className="arcade-label">도전자 누적</div>
-              <div className="font-display text-xl leading-none text-arcade-amber tabular-nums">
+              <div className="arcade-label">CHALLENGES</div>
+              <div className="font-display text-xl leading-none text-arcade-neon tabular-nums">
                 {totalChallenges}
-                <span className="ml-1 text-[10px] text-arcade-muted">회</span>
+                <span className="ml-1 text-[10px] text-zinc-400">회</span>
               </div>
             </div>
           </div>
@@ -463,8 +463,8 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
       {/* 안내 hint */}
       {!selected && mapReady && (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
-          <div className="arcade-card bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-arcade-muted backdrop-blur">
-            ▼ 핀을 눌러 도장 정보 열기
+          <div className="arcade-card bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
+            ▼ 마커를 눌러 STAGE INFO 열기
           </div>
         </div>
       )}
@@ -489,34 +489,42 @@ function SelectedHeader({
   location: LocationWithStats;
   onClose: () => void;
 }) {
+  const tier = tierOf(location.recordCount);
+  const tierClass =
+    tier === "hot"
+      ? "border-arcade-danger text-arcade-danger"
+      : tier === "active"
+        ? "border-arcade-accent text-arcade-accent"
+        : "border-arcade-neon text-arcade-neon";
+
   return (
     <div className="pointer-events-auto animate-[gj-slide-down_0.18s_ease-out]">
-      <div className="arcade-card border-arcade-phosphor3 bg-arcade-panel/95 px-3 py-2.5 backdrop-blur">
+      <div className="arcade-card border-2 border-arcade-accent bg-arcade-panel/95 px-3 py-2.5 shadow-arcade-glow backdrop-blur">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="arcade-chip border-arcade-border text-arcade-muted">
-                DOJO
+              <span className="arcade-chip border-arcade-accent text-arcade-accent">
+                STAGE
               </span>
               {location.recordCount === 0 && (
-                <span className="arcade-chip border-arcade-phosphor3 text-arcade-phosphor2">
-                  무주공산
+                <span className="arcade-chip border-arcade-neon text-arcade-neon">
+                  NEW
                 </span>
               )}
             </div>
-            <h3 className="arcade-title mt-1.5 truncate text-sm font-bold text-arcade-phosphor2">
+            <h3 className="arcade-title mt-1.5 truncate text-sm font-bold text-arcade-accent">
               {location.name}
             </h3>
             {location.address && (
-              <div className="truncate text-[10px] text-arcade-muted">
+              <div className="truncate text-[10px] text-zinc-400">
                 {location.address}
               </div>
             )}
           </div>
           {location.recordCount > 0 && (
             <div className="shrink-0 text-right">
-              <div className="arcade-label">기록</div>
-              <div className="font-display text-base leading-none text-arcade-amber">
+              <div className="arcade-label">SCORE</div>
+              <div className={`text-base font-bold ${tierClass.split(" ")[1]}`}>
                 ★{location.recordCount}
               </div>
             </div>
@@ -546,55 +554,54 @@ function StageSheet({
   onChallenge: () => void;
 }) {
   const tier = tierOf(location.recordCount);
-  const tierLabel =
-    tier === "hot" ? "마스터 있음" : tier === "active" ? "도전 중" : "무주공산";
+  const tierLabel = tier === "hot" ? "HOT" : tier === "active" ? "ACTIVE" : "NEW";
   const tierClass =
     tier === "hot"
-      ? "border-arcade-amber text-arcade-amber"
+      ? "border-arcade-danger text-arcade-danger"
       : tier === "active"
-        ? "border-arcade-phosphor3 text-arcade-phosphor2"
-        : "border-arcade-muted text-arcade-muted";
+        ? "border-arcade-accent text-arcade-accent"
+        : "border-arcade-neon text-arcade-neon";
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 animate-[gj-slide-up_0.22s_ease-out]">
-      <div className="border-t border-arcade-phosphor3 bg-arcade-panel/95 px-4 pb-4 pt-3 backdrop-blur">
+      <div className="border-t border-arcade-accent bg-arcade-panel/95 px-4 pb-4 pt-3 shadow-[0_-6px_24px_rgba(255,210,63,0.18)] backdrop-blur">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-arcade-border" />
 
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`arcade-chip ${tierClass}`}>{tierLabel}</span>
-            <span className="arcade-label-wide">도장 정보</span>
+            <span className="arcade-label-wide">STAGE INFO</span>
           </div>
           <span className="arcade-label">지도 탭 ▸ 닫기</span>
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
           <div className="arcade-stat p-2">
-            <div className="arcade-label">마스터 기록</div>
+            <div className="arcade-label">HIGH SCORE</div>
             {location.topPullup ? (
               <>
-                <div className="font-display text-lg leading-none text-arcade-amber tabular-nums">
+                <div className="font-display text-lg leading-none text-arcade-accent tabular-nums">
                   {location.topPullup.value}
-                  <span className="ml-0.5 text-[9px] text-arcade-muted">회</span>
+                  <span className="ml-0.5 text-[9px] text-zinc-400">회</span>
                 </div>
-                <div className="truncate text-[9px] text-arcade-muted">
+                <div className="truncate text-[9px] text-zinc-500">
                   {location.topPullup.nickname}
                 </div>
               </>
             ) : (
-              <div className="font-display text-lg leading-none text-arcade-muted">---</div>
+              <div className="font-display text-lg leading-none text-zinc-600">---</div>
             )}
           </div>
           <div className="arcade-stat p-2">
-            <div className="arcade-label">도전자</div>
-            <div className="font-display text-lg leading-none text-arcade-phosphor2 tabular-nums">
+            <div className="arcade-label">CHALLENGERS</div>
+            <div className="font-display text-lg leading-none text-arcade-neon tabular-nums">
               {location.recordCount}
-              <span className="ml-0.5 text-[9px] text-arcade-muted">명</span>
+              <span className="ml-0.5 text-[9px] text-zinc-400">명</span>
             </div>
           </div>
           <div className="arcade-stat p-2">
-            <div className="arcade-label">거리</div>
-            <div className="font-display text-lg leading-none text-zinc-300 tabular-nums">
+            <div className="arcade-label">DISTANCE</div>
+            <div className="font-display text-lg leading-none text-zinc-200 tabular-nums">
               {distance == null
                 ? "--"
                 : distance < 1
@@ -606,9 +613,9 @@ function StageSheet({
 
         <button
           onClick={onChallenge}
-          className="arcade-btn-amber font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
+          className="arcade-btn-primary font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
         >
-          ▸ 도장 입장
+          ▶ ENTER STAGE
         </button>
       </div>
     </div>

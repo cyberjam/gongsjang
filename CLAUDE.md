@@ -19,26 +19,16 @@ GPS 기반 동네 철봉 랭킹 웹앱. **운동 앱이 아니라 인디게임**
 
 ### 1. 컬러 — `tailwind.config.ts → arcade.*`
 
-톤: **CRT 모노그린 + 앰버 보조** (사이버펑크 X, 오락실 점수판 O)
-
 | 토큰 | HEX | 용도 |
 |---|---|---|
-| `arcade-bg` | `#050507` | 화면 배경 (전원 꺼진 CRT) |
-| `arcade-panel` | `#0f1112` | 카드/패널 |
-| `arcade-inset` | `#0a0c0d` | 카드 안쪽 inset |
-| `arcade-border` | `#1f2a23` | 보더 (살짝 녹색 톤) |
-| **`arcade-phosphor`** | `#39ff14` | 인광 그린 — UI 활성 강조, 메인 |
-| `arcade-phosphor2` | `#5dd472` | 중간 — h1, 본문 강조 |
-| `arcade-phosphor3` | `#3d7f47` | 어두움 — 보더 강조, 비활성 텍스트 |
-| **`arcade-amber`** | `#ffb000` | 앰버 — 마스터 점수, ★ 고수 |
-| `arcade-amber2` | `#ff8a00` | 더 진한 앰버 |
-| `arcade-muted` | `#5a6b60` | 보조 텍스트 (녹회색) |
-| `arcade-danger` | `#cf3838` | 어두운 빨강 — 경고만 |
-
-**색 사용 원칙**
-- UI 텍스트·보더·라벨 → `phosphor3` / `muted` / `phosphor2` 그린 톤
-- **마스터·점수·★ 고수 만 amber** — 시선 끄는 단 하나의 색
-- `arcade-accent` (구 골드) 는 레거시. 점진 제거.
+| `arcade-bg` | `#0a0a0f` | 화면 배경 |
+| `arcade-panel` | `#15151f` | 카드/패널 배경 |
+| `arcade-inset` | `#0e0e16` | 카드 안쪽 inset 배경 |
+| `arcade-border` | `#2a2a3a` | 1px 보더 |
+| `arcade-accent` | `#ffd23f` | 금색 — primary, 1등, 보스 |
+| `arcade-neon` | `#39ff14` | 네온 그린 — 현재위치, 첫 도전자 |
+| `arcade-danger` | `#ff3864` | 빨강 — HOT, 경고, 전설 강조 |
+| `arcade-muted` | `#888fa0` | 보조 텍스트 |
 
 ### 2. 폰트
 
@@ -150,18 +140,15 @@ GPS 기반 동네 철봉 랭킹 웹앱. **운동 앱이 아니라 인디게임**
 - 라벨은 `.arcade-label` 계열로
 - 버튼은 `.arcade-btn-*` 계열로
 - 영문 캡스 + 한글 짧게
-- 마스터/점수는 amber, 나머지는 green/zinc
+- 1등 금색, 2등 은색, 3등 동색
 - 모바일 우선
-- 도장 어휘 — 마스터/도전자/수성/무주공산/개척자/격파
 
 ### ❌ Never
 - 흰색 배경, 파스텔
 - `rounded-xl` 이상 (큰 둥근 모서리)
 - 산세리프 본문
-- 친절·응원 카피 ("화이팅", "최고예요" 금지)
-- **운동앱/피트니스 어휘** — 운동, 헬스, 피트니스, 사용자, 회원 (도장 어휘로 치환)
-- TOP/HIGH SCORE 같은 일반 랭킹 표기 (마스터/최강자로)
-- 강한 blur glow / 알록달록 네온 (CRT 톤 유지)
+- 친절한 응원 카피 ("화이팅", "최고예요" 금지)
+- 운동앱/SaaS 톤
 - 새 색상/트래킹/그림자 인라인 추가 (토큰부터 보기)
 - 이모지 남용 (마이크로카피로 분위기 만들기)
 

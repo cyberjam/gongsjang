@@ -77,7 +77,7 @@ export default function AddLocationButton() {
             className="w-full max-w-md animate-[gj-slide-up_0.22s_ease-out] rounded-t border-t-2 border-arcade-accent bg-arcade-panel p-4 shadow-[0_-8px_24px_rgba(255,210,63,0.18)] sm:rounded sm:border-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 text-sm font-bold text-arcade-phosphor2">새 도장 등록</div>
+            <div className="mb-3 text-sm font-bold text-arcade-accent">새 스테이지 등록</div>
 
             <label className="mb-2 block text-[11px] text-zinc-400">이름 *</label>
             <input

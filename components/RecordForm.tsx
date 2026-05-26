@@ -66,7 +66,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-[11px] text-arcade-muted">닉네임 (최대 12자)</label>
+        <label className="mb-1 block text-[11px] text-zinc-400">닉네임 (최대 12자)</label>
         <input
           className="arcade-input"
           value={nickname}
@@ -77,17 +77,17 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[11px] text-arcade-muted">종목</label>
+        <label className="mb-1 block text-[11px] text-zinc-400">종목</label>
         <div className="grid grid-cols-4 gap-2">
           {RECORD_TYPES.map((t) => (
             <button
               key={t.value}
               type="button"
               onClick={() => setType(t.value)}
-              className={`rounded-sm border px-2 py-2 text-xs transition ${
+              className={`rounded border px-2 py-2 text-xs ${
                 type === t.value
-                  ? "border-arcade-phosphor bg-arcade-phosphor/10 text-arcade-phosphor"
-                  : "border-arcade-border text-arcade-muted hover:border-arcade-phosphor3"
+                  ? "border-arcade-accent bg-arcade-accent text-arcade-bg"
+                  : "border-arcade-border text-zinc-300"
               }`}
             >
               {t.label}
@@ -113,7 +113,7 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[11px] text-arcade-muted">메모 (선택)</label>
+        <label className="mb-1 block text-[11px] text-zinc-400">메모 (선택)</label>
         <textarea
           className="arcade-input"
           rows={2}
@@ -129,9 +129,9 @@ export default function RecordForm({ locationId }: { locationId: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="arcade-btn-amber font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
+        className="arcade-btn-primary font-display w-full py-3 text-lg leading-none tracking-[0.18em]"
       >
-        {loading ? "등록 중..." : "▸ 기록 남기기"}
+        {loading ? "등록 중..." : "▶ SUBMIT SCORE"}
       </button>
     </form>
   );
