@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:fetch": "node --env-file=.env.local scripts/fetch-public-data.mjs",
+    "seed:build": "node --env-file=.env.local scripts/build-seeds.mjs",
+    "seed:import": "node --env-file=.env.local scripts/import-seeds.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

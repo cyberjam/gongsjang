@@ -61,3 +61,35 @@ insert into locations (name, address, description, lat, lng) values
   ('남산 야외운동기구', '서울 중구 회현동1가', '계단 옆 철봉, 높이 적당', 37.5519, 126.9810),
   ('보라매공원 헬스존', '서울 동작구 신대방동', '동네 고수들 모이는 곳', 37.4936, 126.9197)
 on conflict do nothing;
+
+-- ─────────────────────────────────────────────────────────────
+-- 시드 import 지원 — 외부 데이터 출처 추적 + 공간 dedup
+-- ─────────────────────────────────────────────────────────────
+
+alter table locations add column if not exists source text;
+-- 'public_data' | 'osm' | 'manual' | 'user'
+alter table locations add column if not exists external_id text;
+-- 원본 데이터셋에서의 식별자 (재import 시 dedup)
+alter table locations add column if not exists verified boolean not null default false;
+-- 큐레이션 완료 여부 (이름·설명 톤 입혔는지)
+
+create unique index if not exists locations_source_external_id_uniq
+  on locations (source, external_id)
+  where source is not null and external_id is not null;
+
+-- 두 좌표 사이 거리 N미터 이내인 기존 location 조회 (Haversine).
+-- import 스크립트가 30m dedup에 사용.
+create or replace function locations_within(
+  in_lat double precision,
+  in_lng double precision,
+  in_meters double precision
+)
+returns setof locations
+language sql stable as $$
+  select * from locations
+  where 6371000 * 2 * asin(sqrt(
+    power(sin(radians((lat - in_lat) / 2)), 2) +
+    cos(radians(in_lat)) * cos(radians(lat)) *
+    power(sin(radians((lng - in_lng) / 2)), 2)
+  )) <= in_meters;
+$$;

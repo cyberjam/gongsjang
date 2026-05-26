@@ -12,3 +12,6 @@ dist
 *.log
 .vercel
 next-env.d.ts
+
+# 시드 빌더 raw 응답 (data.go.kr 원본, 재현 가능하므로 git 제외)
+supabase/raw/
