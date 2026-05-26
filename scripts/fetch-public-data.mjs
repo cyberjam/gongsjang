@@ -68,11 +68,32 @@ function buildMaskedUrl(endpoint, paramsObj) {
   return `${BASE}/${endpoint}?serviceKey=${maskKey(DECODED_KEY)}&${otherQs}`;
 }
 
-async function fetchPage(endpoint, pageNo) {
+// 타임아웃 + 재시도 fetch (큰 데이터셋의 일시적 연결 끊김 대응)
+async function fetchWithRetry(url, { retries = 4, timeoutMs = 30000 } = {}) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      const text = await res.text();
+      clearTimeout(timer);
+      return { res, text };
+    } catch (e) {
+      clearTimeout(timer);
+      const reason = e.name === "AbortError" ? `timeout(${timeoutMs}ms)` : e.message;
+      if (attempt === retries) return { netError: reason };
+      const backoff = attempt * 2000; // 2s,4s,6s,8s
+      console.warn(`  ⟳ 재시도 ${attempt}/${retries} (${backoff}ms 후) — ${reason}`);
+      await new Promise((r) => setTimeout(r, backoff));
+    }
+  }
+}
+
+async function fetchPage(endpoint, pageNo, pageSize = PAGE_SIZE) {
   // data.go.kr 예시 URL 패턴 정확히 일치: serviceKey + pageNo + numOfRows + type
   const paramsObj = {
     pageNo: String(pageNo),
-    numOfRows: String(PAGE_SIZE),
+    numOfRows: String(pageSize),
     type: "json",
   };
   const url = buildUrl(endpoint, paramsObj);
@@ -80,13 +101,11 @@ async function fetchPage(endpoint, pageNo) {
 
   console.log(`→ ${maskedUrl}`);
 
-  let res, text;
-  try {
-    res = await fetch(url);
-    text = await res.text();
-  } catch (e) {
-    return { error: `network: ${e.message}` };
+  const got = await fetchWithRetry(url);
+  if (got.netError) {
+    return { error: `network: ${got.netError}` };
   }
+  const { res, text } = got;
 
   const ctype = res.headers.get("content-type") || "";
   if (!res.ok) {
@@ -143,15 +162,32 @@ async function fetchPage(endpoint, pageNo) {
 async function fetchAllPages(endpoint) {
   const all = [];
   let pageNo = START_PAGE;
+  let pageSize = PAGE_SIZE;
+  let shrunk = false;
 
   while (true) {
-    const result = await fetchPage(endpoint, pageNo);
+    const result = await fetchPage(endpoint, pageNo, pageSize);
+
     if (result.error) {
+      // numOfRows 가 큰 게 원인일 수 있음 — 단, 아직 한 건도 못 받았을 때만 축소
+      // (중간에 page size 를 바꾸면 페이지 경계가 어긋나 데이터 누락/중복 발생)
+      if (!shrunk && pageSize > 100 && all.length === 0) {
+        shrunk = true;
+        const oldSize = pageSize;
+        pageSize = 100;
+        console.warn(
+          `  ⚠️  첫 페이지 실패 — numOfRows ${oldSize}→100 으로 축소 후 재시도`,
+        );
+        continue; // 같은 pageNo(=START_PAGE) 다시
+      }
+
       console.error(`❌ ${result.error}`);
       if (result.status) console.error(`   HTTP ${result.status}  content-type=${result.ctype}`);
       if (result.preview)
         console.error(`   body[:1000]:\n${result.preview.replace(/^/gm, "     ")}`);
       diagnose(result);
+      // 부분 저장: 지금까지 받은 all 은 그대로 반환
+      console.warn(`  (지금까지 받은 ${all.length}건은 저장됩니다)`);
       break;
     }
 
