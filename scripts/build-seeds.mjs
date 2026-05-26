@@ -50,6 +50,19 @@ if (!Array.isArray(rawEqmtsRaw) || rawEqmtsRaw.length === 0) {
   process.exit(2);
 }
 
+// ─── 0b. 필드명 진단 — 실제 응답 키가 기대와 다른지 즉시 확인 ──────
+console.log("=== 원본 필드 진단 (실외운동기구 첫 항목) ===");
+console.log("  keys:", Object.keys(rawEqmtsRaw[0]).join(", "));
+console.log("  sample:", JSON.stringify(rawEqmtsRaw[0]).slice(0, 400));
+console.log("\n  스크립트가 기대하는 필드: exrcEqmtNm, latitude, longitude, rdnmadr, lnmadr, instlPlaceNm");
+console.log("  → 위 keys 와 다르면 lib/cheongju.mjs / build-seeds.mjs 의 필드명 매핑 수정 필요\n");
+
+if (Array.isArray(rawParksRaw) && rawParksRaw[0]) {
+  console.log("=== 원본 필드 진단 (도시공원 첫 항목) ===");
+  console.log("  keys:", Object.keys(rawParksRaw[0]).join(", "));
+  console.log("");
+}
+
 // ─── 1. 공원 인덱스 ─────────────────────────────────────────────
 const rawParks = rawParksRaw;
 const parks = rawParks
@@ -71,8 +84,12 @@ const stats = {
 };
 const candidates = [];
 
+// 키워드 통과했지만 좌표/bbox에서 빠진 표본 (진단용)
+const sampleKeywordPass = [];
+
 for (const eqmt of rawEqmts) {
   if (!matchesPullup(eqmt.exrcEqmtNm)) { stats.skipKeyword++; continue; }
+  if (sampleKeywordPass.length < 3) sampleKeywordPass.push(eqmt);
   const lat = asNum(eqmt.latitude);
   const lng = asNum(eqmt.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) { stats.skipCoord++; continue; }
@@ -89,6 +106,38 @@ for (const eqmt of rawEqmts) {
     instlPlaceNm: eqmt.instlPlaceNm,
     externalId: eqmtExternalId(eqmt),
   });
+}
+
+// 후보 0건 진단 — 어느 필터에서 다 빠졌는지 + 표본
+if (candidates.length === 0) {
+  console.error("\n❌ 철봉 후보 0건 — 어느 단계에서 전부 빠졌는지 확인:");
+  console.error(`   키워드 미스 ${stats.skipKeyword} / 좌표무효 ${stats.skipCoord} / bbox밖 ${stats.skipBbox} (총 ${rawEqmts.length})`);
+  if (stats.skipKeyword === rawEqmts.length) {
+    console.error("\n   → 전부 '키워드 미스'. exrcEqmtNm 필드명이 다르거나 운동기구명 표기가 다름.");
+    console.error("     첫 항목 운동기구명 후보 키 점검:");
+    const k = rawEqmts[0];
+    for (const key of Object.keys(k)) {
+      const v = String(k[key] ?? "");
+      if (/철|봉|걸이|운동|기구|풀|업|현수/.test(v)) {
+        console.error(`       ${key} = ${v}`);
+      }
+    }
+  } else if (stats.skipCoord > 0 && stats.skipCoord >= stats.skipBbox) {
+    console.error("\n   → '좌표 무효' 비중 큼. latitude/longitude 필드명이 다를 수 있음.");
+    if (sampleKeywordPass[0]) {
+      console.error("     키워드 통과 표본 keys:", Object.keys(sampleKeywordPass[0]).join(", "));
+      console.error("     표본:", JSON.stringify(sampleKeywordPass[0]).slice(0, 400));
+    }
+  } else if (stats.skipBbox === rawEqmts.length - stats.skipKeyword - stats.skipCoord) {
+    console.error("\n   → 좌표는 유효하나 전부 'bbox 밖'. 좌표 필드 매핑은 맞지만 청주에 데이터가 없거나 lat/lng 가 뒤바뀜.");
+    if (sampleKeywordPass[0]) {
+      const s = sampleKeywordPass[0];
+      console.error(`     표본 좌표: latitude=${s.latitude} longitude=${s.longitude}`);
+      console.error(`     bbox: lat 36.45~36.80, lng 127.20~127.70`);
+    }
+  }
+  console.error("");
+  process.exit(3);
 }
 
 // ─── 3. 30m dedup (같은 장소의 다중 기구 통합) ─────────────────
