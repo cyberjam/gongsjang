@@ -53,7 +53,8 @@ const BASE = "https://api.data.go.kr/openapi";
 // 거부하므로 전국 raw 를 받아 build-seeds 의 inCheongjuBbox 로 로컬 필터한다.
 const PAGE_SIZE = 1000;
 const START_PAGE = 1;
-const MAX_PAGES = 200; // 안전장치 (총 20만건까지)
+// 안전장치 — 실질 종료는 totalCount. numOfRows=100 으로 축소돼도 완주하도록 넉넉히.
+const MAX_PAGES = 2000;
 
 function buildUrl(endpoint, paramsObj) {
   // serviceKey 외 파라미터는 URLSearchParams 가 자동 encode (한글 등 정상 처리)
@@ -164,38 +165,57 @@ async function fetchAllPages(endpoint) {
   let pageNo = START_PAGE;
   let pageSize = PAGE_SIZE;
   let shrunk = false;
+  let totalCount = Infinity; // 첫 성공 응답에서 갱신
+  let consecutiveFails = 0;
+  const MAX_CONSECUTIVE_FAILS = 6;
 
   while (true) {
     const result = await fetchPage(endpoint, pageNo, pageSize);
 
     if (result.error) {
-      // numOfRows 가 큰 게 원인일 수 있음 — 단, 아직 한 건도 못 받았을 때만 축소
-      // (중간에 page size 를 바꾸면 페이지 경계가 어긋나 데이터 누락/중복 발생)
-      if (!shrunk && pageSize > 100 && all.length === 0) {
-        shrunk = true;
-        const oldSize = pageSize;
-        pageSize = 100;
-        console.warn(
-          `  ⚠️  첫 페이지 실패 — numOfRows ${oldSize}→100 으로 축소 후 재시도`,
-        );
-        continue; // 같은 pageNo(=START_PAGE) 다시
+      // 서버가 파라미터/키 거부(resultCode/HTTP) → 재시도 무의미, 즉시 중단
+      const fatal = result.resultCode || result.status;
+      if (fatal) {
+        console.error(`❌ ${result.error}`);
+        if (result.status) console.error(`   HTTP ${result.status}  content-type=${result.ctype}`);
+        if (result.preview)
+          console.error(`   body[:1000]:\n${result.preview.replace(/^/gm, "     ")}`);
+        diagnose(result);
+        console.warn(`  (지금까지 받은 ${all.length}건은 저장됩니다)`);
+        break;
       }
 
-      console.error(`❌ ${result.error}`);
-      if (result.status) console.error(`   HTTP ${result.status}  content-type=${result.ctype}`);
-      if (result.preview)
-        console.error(`   body[:1000]:\n${result.preview.replace(/^/gm, "     ")}`);
-      diagnose(result);
-      // 부분 저장: 지금까지 받은 all 은 그대로 반환
-      console.warn(`  (지금까지 받은 ${all.length}건은 저장됩니다)`);
-      break;
+      // 첫 페이지 + 미수신 상태면 numOfRows 축소 재시도
+      if (!shrunk && pageSize > 100 && all.length === 0) {
+        shrunk = true;
+        pageSize = 100;
+        console.warn(`  ⚠️  첫 페이지 실패 — numOfRows →100 축소 후 재시도`);
+        continue;
+      }
+
+      // 네트워크/타임아웃 → 이 페이지 건너뛰고 계속 (충북이 뒤에 있을 수 있으므로 완주 우선)
+      consecutiveFails++;
+      console.warn(
+        `  ⚠️  page ${pageNo} 실패(${result.error}) — 건너뛰고 계속 ` +
+          `(연속 실패 ${consecutiveFails}/${MAX_CONSECUTIVE_FAILS})`,
+      );
+      if (consecutiveFails >= MAX_CONSECUTIVE_FAILS) {
+        console.error(`❌ 연속 ${MAX_CONSECUTIVE_FAILS}회 실패 — 중단. (받은 ${all.length}건 저장)`);
+        break;
+      }
+      pageNo++;
+      if (pageNo > MAX_PAGES) break;
+      continue;
     }
 
+    consecutiveFails = 0;
+    totalCount = result.totalCount || totalCount;
     all.push(...result.items);
     console.log(`  +${result.items.length} (누적 ${all.length}/${result.totalCount})\n`);
 
     if (result.items.length === 0) break;
-    if (all.length >= result.totalCount) break;
+    // pageSize 기준 끝 페이지 판정 (건너뛴 페이지가 있으면 all.length 로는 부정확)
+    if (pageNo * pageSize >= totalCount) break;
     pageNo++;
     if (pageNo > MAX_PAGES) {
       console.warn(`  too many pages (>${MAX_PAGES}), stopping (안전장치)`);

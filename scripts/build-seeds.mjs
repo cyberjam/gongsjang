@@ -65,6 +65,30 @@ if (Array.isArray(rawParksRaw) && rawParksRaw[0]) {
   console.log("");
 }
 
+// ─── 0c. 시도(ctpvNm) 분포 진단 — 충북/청주가 실제로 들어왔는지 확인 ───
+{
+  const byCtpv = {};
+  let chungbuk = 0;
+  let cheongju = 0;
+  for (const r of rawEqmtsRaw) {
+    const c = r.ctpvNm ?? r.ctprvnNm ?? "(미상)";
+    byCtpv[c] = (byCtpv[c] || 0) + 1;
+    if (/충청북도|충북/.test(c)) chungbuk++;
+    if (/청주/.test(r.sggNm ?? r.signguNm ?? "")) cheongju++;
+  }
+  console.log("=== 시도(ctpvNm) 분포 — 받은 raw 전체 ===");
+  Object.entries(byCtpv)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([c, n]) => console.log(`  ${c.padEnd(12)} ${n}`));
+  console.log(`\n  → 충청북도: ${chungbuk}건, 청주 sgg: ${cheongju}건`);
+  if (chungbuk === 0) {
+    console.log("  ⚠️  충북 데이터가 raw 에 없음 → fetch 가 충북 도달 전 중단됨.");
+    console.log("     전국 데이터셋이 지역코드 순 정렬이라 fetch 완주 필요.");
+    console.log("     seed:fetch 로그에서 '누적 N/totalCount' 확인 — N < totalCount 면 미완주.");
+  }
+  console.log("");
+}
+
 // ─── 1. 공원 인덱스 ─────────────────────────────────────────────
 const rawParks = rawParksRaw;
 const parks = rawParks
