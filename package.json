@@ -9,7 +9,9 @@
     "lint": "next lint",
     "seed:fetch": "node --env-file=.env.local scripts/fetch-public-data.mjs",
     "seed:build": "node --env-file=.env.local scripts/build-seeds.mjs",
-    "seed:import": "node --env-file=.env.local scripts/import-seeds.mjs"
+    "seed:osm": "node scripts/fetch-osm.mjs",
+    "seed:import": "node --env-file=.env.local scripts/import-seeds.mjs",
+    "seed:import:osm": "node --env-file=.env.local scripts/import-seeds.mjs supabase/seeds/cheongju.osm.json"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
