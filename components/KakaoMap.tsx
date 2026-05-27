@@ -236,29 +236,22 @@ export default function KakaoMap({
     };
   }, []);
 
-  // === Effect B: locations 마커 attach/detach =================================
-  // - locations 또는 mapReady 변경 시 기존 overlay 전부 setMap(null)로 제거 후 새로 생성
-  // - cleanup에서도 동일하게 정리 → 누적 방지의 핵심
+  // === Effect B: viewport 내부 마커만 렌더 (성능 최적화) =====================
+  // - 전체 locations 중 현재 지도 bounds 안의 것만 overlay 생성
+  // - bounds 변경(idle) 시 visible 재계산: 화면 밖 제거, 새로 들어온 것 추가
+  // - MAX_VISIBLE 캡으로 밀집 지역 과부하 방지
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.kakao) return;
     const { kakao } = window;
     const map = mapRef.current;
+    const MAX_VISIBLE = 400;
 
-    // 이전 오버레이 잔존분 완전 분리 (effect 재실행 첫 진입 시)
-    markerOverlaysRef.current.forEach(({ overlay, el, onClick }) => {
-      overlay.setMap(null);
-      el.removeEventListener("click", onClick);
-    });
-    markerOverlaysRef.current = [];
-
-    const next: MarkerOverlayEntry[] = [];
-
-    locations.forEach((loc) => {
+    const makeEntry = (loc: LocationWithStats): MarkerOverlayEntry => {
       const tier = tierOf(loc.recordCount);
       const el = document.createElement("div");
       el.className = "gj-marker";
       el.dataset.tier = tier;
-      el.dataset.selected = "false";
+      el.dataset.selected = loc.id === selected?.id ? "true" : "false";
       const chipHtml =
         loc.recordCount > 0
           ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
@@ -277,7 +270,6 @@ export default function KakaoMap({
         map.panTo(new kakao.maps.LatLng(loc.lat, loc.lng));
       };
       el.addEventListener("click", onClick);
-
       const overlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(loc.lat, loc.lng),
         content: el,
@@ -285,33 +277,66 @@ export default function KakaoMap({
         xAnchor: 0.5,
         clickable: true,
       });
-      overlay.setMap(map);
+      return { id: loc.id, el, overlay, onClick };
+    };
 
-      next.push({ id: loc.id, el, overlay, onClick });
-    });
+    const rendered = new Map<string, MarkerOverlayEntry>();
 
-    markerOverlaysRef.current = next;
+    const renderVisible = () => {
+      const bounds = map.getBounds();
+      if (!bounds) return;
 
-    // 새로 만든 마커들에 현재 selected 상태 즉시 반영
-    next.forEach(({ id, el }) => {
-      el.dataset.selected = id === selected?.id ? "true" : "false";
-    });
+      // 1) 현재 bounds 안의 location id 집합 (cap)
+      const targetIds = new Set<string>();
+      for (const loc of locations) {
+        if (bounds.contain(new kakao.maps.LatLng(loc.lat, loc.lng))) {
+          targetIds.add(loc.id);
+          if (targetIds.size >= MAX_VISIBLE) break;
+        }
+      }
 
-    // 첫 마커 위치로 중심 1회 (사용자 위치 없을 때만)
+      // 2) 화면 밖으로 나간 것 제거
+      for (const [id, entry] of rendered) {
+        if (!targetIds.has(id)) {
+          entry.overlay.setMap(null);
+          entry.el.removeEventListener("click", entry.onClick);
+          rendered.delete(id);
+        }
+      }
+
+      // 3) 새로 들어온 것 추가
+      for (const loc of locations) {
+        if (targetIds.has(loc.id) && !rendered.has(loc.id)) {
+          const entry = makeEntry(loc);
+          entry.overlay.setMap(map);
+          rendered.set(loc.id, entry);
+        }
+      }
+
+      markerOverlaysRef.current = Array.from(rendered.values());
+      console.log(
+        `[map] total=${locations.length} rendered=${rendered.size}` +
+          (targetIds.size >= MAX_VISIBLE ? ` (capped ${MAX_VISIBLE})` : ""),
+      );
+    };
+
+    // 첫 마커 중심 1회 (사용자 위치 없을 때만) → 이후 렌더
     if (locations[0] && !myPosRef.current) {
       map.setCenter(new kakao.maps.LatLng(locations[0].lat, locations[0].lng));
     }
+    renderVisible();
+
+    const onIdle = () => renderVisible();
+    kakao.maps.event.addListener(map, "idle", onIdle);
 
     return () => {
-      // unmount 또는 deps 변경 직전 — 만들었던 next 배열 분리
-      next.forEach(({ overlay, el, onClick }) => {
-        overlay.setMap(null);
-        el.removeEventListener("click", onClick);
-      });
-      // 동일한 참조면 ref도 비움 (StrictMode 안전)
-      if (markerOverlaysRef.current === next) {
-        markerOverlaysRef.current = [];
+      kakao.maps.event.removeListener(map, "idle", onIdle);
+      for (const entry of rendered.values()) {
+        entry.overlay.setMap(null);
+        entry.el.removeEventListener("click", entry.onClick);
       }
+      rendered.clear();
+      markerOverlaysRef.current = [];
     };
     // selected는 의도적으로 deps에서 제외 — 마커 재생성 트리거하면 안 됨
     // eslint-disable-next-line react-hooks/exhaustive-deps
