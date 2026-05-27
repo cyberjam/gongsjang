@@ -31,6 +31,9 @@ if (arg === "p1") path = "supabase/seeds/cheongju.p1.json";
 else if (arg === "p2") path = "supabase/seeds/cheongju.p2.json";
 else if (arg === "all") path = "supabase/seeds/cheongju.json";
 else if (arg === "etc") path = "supabase/seeds/cheongju.etc.json";
+else if (arg === "parks") path = "supabase/seeds/parks-demo.json";
+else if (arg === "eqmt") path = "supabase/seeds/eqmt-demo.json";
+else if (arg === "osm") path = "supabase/seeds/cheongju.osm.json";
 else path = arg;
 
 console.log(`📂 ${path}\n`);
