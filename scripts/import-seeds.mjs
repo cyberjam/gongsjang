@@ -61,9 +61,37 @@ const BATCH_THRESHOLD = 500;
 const BATCH_SIZE = 500;
 
 if (seeds.length > BATCH_THRESHOLD) {
-  console.log(`대용량 → 배치 upsert 모드 (${BATCH_SIZE}건씩, 좌표 dedup 생략)\n`);
-  for (let i = 0; i < seeds.length; i += BATCH_SIZE) {
-    const chunk = seeds.slice(i, i + BATCH_SIZE).map((s) => ({
+  console.log(`대용량 → 배치 insert 모드 (${BATCH_SIZE}건씩, 좌표 dedup 생략)`);
+
+  // 재실행 시 중복 방지: 이미 들어간 external_id 미리 조회해서 제외
+  const existing = new Set();
+  {
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from("locations")
+        .select("external_id")
+        .eq("source", "public_data")
+        .not("external_id", "is", null)
+        .range(from, from + PAGE - 1);
+      if (error || !data || data.length === 0) break;
+      for (const r of data) existing.add(r.external_id);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+  }
+  if (existing.size > 0) {
+    console.log(`  기존 external_id ${existing.size}건 → 제외 후 insert`);
+  }
+
+  const fresh = seeds.filter(
+    (s) => !(s.external_id && existing.has(s.external_id)),
+  );
+  console.log(`  신규 ${fresh.length}건 insert 시작\n`);
+
+  for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
+    const chunk = fresh.slice(i, i + BATCH_SIZE).map((s) => ({
       name: s.name,
       address: s.address || null,
       description: s.description || null,
@@ -73,26 +101,21 @@ if (seeds.length > BATCH_THRESHOLD) {
       external_id: s.external_id ?? null,
       verified: s.verified ?? false,
     }));
-    const { error, count } = await supabase
-      .from("locations")
-      .upsert(chunk, {
-        onConflict: "source,external_id",
-        ignoreDuplicates: true,
-        count: "estimated",
-      });
+    const { error } = await supabase.from("locations").insert(chunk);
     if (error) {
       console.error(`  ✗ batch ${i}~${i + chunk.length} 실패: ${error.message}`);
       failed += chunk.length;
     } else {
       inserted += chunk.length;
-      console.log(`  ✓ ${i + chunk.length}/${seeds.length}`);
+      console.log(`  ✓ ${i + chunk.length}/${fresh.length}`);
     }
   }
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log(`  upsert 시도       ${inserted} (중복은 자동 무시)`);
+  console.log(`  삽입 완료         ${inserted}`);
+  console.log(`  기존 중복 스킵    ${seeds.length - fresh.length}`);
   console.log(`  실패              ${failed}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("\n→ 지도(/) 접속해서 마커 확인. (실제 행 수는 Supabase Table Editor 확인)");
+  console.log("\n→ 지도(/) 접속해서 마커 확인.");
   process.exit(failed > 0 ? 1 : 0);
 }
 
