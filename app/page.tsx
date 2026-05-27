@@ -6,15 +6,19 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
-  const [{ data: locations, error }, { data: records }] = await Promise.all([
-    supabase
-      .from("locations")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("records")
-      .select("location_id, record_type, value, nickname"),
-  ]);
+  const [{ data: locations, error }, { data: records }, { count: stagesCount }] =
+    await Promise.all([
+      supabase
+        .from("locations")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("records")
+        .select("location_id, record_type, value, nickname"),
+      supabase.from("locations").select("*", { count: "exact", head: true }),
+    ]);
+
+  console.log(`[home] locations total count = ${stagesCount ?? "?"}`);
 
   if (error) {
     return (
@@ -44,5 +48,5 @@ export default async function HomePage() {
     };
   });
 
-  return <KakaoMap locations={enriched} />;
+  return <KakaoMap locations={enriched} stagesCount={stagesCount ?? enriched.length} />;
 }

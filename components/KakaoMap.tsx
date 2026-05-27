@@ -124,7 +124,13 @@ type MarkerOverlayEntry = {
   onClick: (e: Event) => void;
 };
 
-export default function KakaoMap({ locations }: { locations: LocationWithStats[] }) {
+export default function KakaoMap({
+  locations,
+  stagesCount,
+}: {
+  locations: LocationWithStats[];
+  stagesCount?: number;
+}) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -431,8 +437,8 @@ export default function KakaoMap({ locations }: { locations: LocationWithStats[]
           <div className="pointer-events-auto grid grid-cols-2 gap-2">
             <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
               <div className="arcade-label">STAGES</div>
-              <div className="font-display text-xl leading-none text-arcade-accent tabular-nums">
-                {locations.length}
+              <div className="font-display flex items-baseline whitespace-nowrap leading-none text-arcade-accent tabular-nums [font-size:clamp(0.95rem,5vw,1.25rem)] tracking-tight">
+                {(stagesCount ?? locations.length).toLocaleString("ko-KR")}
                 <span className="ml-1 text-[10px] text-zinc-400">곳</span>
               </div>
             </div>
