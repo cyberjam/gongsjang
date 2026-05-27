@@ -55,6 +55,48 @@ let skippedByGeo = 0;
 let failed = 0;
 const insertedByDong = {};
 
+// ─── 대용량(>500): 배치 upsert (행마다 select/rpc 없이 빠르게) ───
+// (source, external_id) 유니크 인덱스로 중복은 무시. 좌표 dedup 은 생략.
+const BATCH_THRESHOLD = 500;
+const BATCH_SIZE = 500;
+
+if (seeds.length > BATCH_THRESHOLD) {
+  console.log(`대용량 → 배치 upsert 모드 (${BATCH_SIZE}건씩, 좌표 dedup 생략)\n`);
+  for (let i = 0; i < seeds.length; i += BATCH_SIZE) {
+    const chunk = seeds.slice(i, i + BATCH_SIZE).map((s) => ({
+      name: s.name,
+      address: s.address || null,
+      description: s.description || null,
+      lat: s.lat,
+      lng: s.lng,
+      source: s.source ?? null,
+      external_id: s.external_id ?? null,
+      verified: s.verified ?? false,
+    }));
+    const { error, count } = await supabase
+      .from("locations")
+      .upsert(chunk, {
+        onConflict: "source,external_id",
+        ignoreDuplicates: true,
+        count: "estimated",
+      });
+    if (error) {
+      console.error(`  ✗ batch ${i}~${i + chunk.length} 실패: ${error.message}`);
+      failed += chunk.length;
+    } else {
+      inserted += chunk.length;
+      console.log(`  ✓ ${i + chunk.length}/${seeds.length}`);
+    }
+  }
+  console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log(`  upsert 시도       ${inserted} (중복은 자동 무시)`);
+  console.log(`  실패              ${failed}`);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n→ 지도(/) 접속해서 마커 확인. (실제 행 수는 Supabase Table Editor 확인)");
+  process.exit(failed > 0 ? 1 : 0);
+}
+
+// ─── 소량(≤500): 행마다 dedup (정밀) ───
 // locations_within RPC 가 없으면 좌표 dedup 비활성화 (external_id 만으로 중복 방지)
 let geoDedup = true;
 

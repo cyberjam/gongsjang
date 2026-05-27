@@ -10,7 +10,11 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const RAW = "supabase/raw/cheongju-parks.json";
 const OUT = "supabase/seeds/parks-demo.json";
-const LIMIT = 300; // 데모용 — 100~300개만
+// limit: 기본 전국 전체. PARKS_LIMIT 환경변수로 조절 (예: PARKS_LIMIT=500)
+const LIMIT =
+  process.env.PARKS_LIMIT && process.env.PARKS_LIMIT !== "all"
+    ? Number(process.env.PARKS_LIMIT)
+    : Infinity;
 
 const asNum = (v) => {
   const n = parseFloat(v);
@@ -76,7 +80,7 @@ console.log("━━━━━━━━━━━━━━━━━━━━━━�
 console.log(`  원본 공원        ${raw.length}`);
 console.log(`  이름 없음 제외   ${skipNoName}`);
 console.log(`  좌표 무효 제외   ${skipNoCoord}`);
-console.log(`  생성 시드        ${seeds.length}  (limit ${LIMIT})`);
+console.log(`  생성 시드        ${seeds.length}  (limit ${LIMIT === Infinity ? "전체" : LIMIT})`);
 console.log(`  → ${OUT}`);
 
 console.log("\n  샘플 5개:");
