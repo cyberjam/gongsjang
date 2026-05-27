@@ -90,29 +90,39 @@ if (seeds.length > BATCH_THRESHOLD) {
   );
   console.log(`  신규 ${fresh.length}건 insert 시작\n`);
 
+  const toRow = (s) => ({
+    name: s.name,
+    address: s.address || null,
+    description: s.description || null,
+    lat: s.lat,
+    lng: s.lng,
+    source: s.source ?? null,
+    external_id: s.external_id ?? null,
+    verified: s.verified ?? false,
+  });
+
+  let dupSkip = 0;
+
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
-    const chunk = fresh.slice(i, i + BATCH_SIZE).map((s) => ({
-      name: s.name,
-      address: s.address || null,
-      description: s.description || null,
-      lat: s.lat,
-      lng: s.lng,
-      source: s.source ?? null,
-      external_id: s.external_id ?? null,
-      verified: s.verified ?? false,
-    }));
-    const { error } = await supabase.from("locations").insert(chunk);
-    if (error) {
-      console.error(`  ✗ batch ${i}~${i + chunk.length} 실패: ${error.message}`);
-      failed += chunk.length;
-    } else {
-      inserted += chunk.length;
-      console.log(`  ✓ ${i + chunk.length}/${fresh.length}`);
+    const slice = fresh.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from("locations").insert(slice.map(toRow));
+    if (!error) {
+      inserted += slice.length;
+      console.log(`  ✓ ${i + slice.length}/${fresh.length}`);
+      continue;
+    }
+    // 배치 내 중복 등으로 실패 → 행 단위 fallback (성공분만 살림)
+    console.warn(`  ⟳ batch ${i}~${i + slice.length} 실패 → 행 단위 재시도`);
+    for (const s of slice) {
+      const { error: e2 } = await supabase.from("locations").insert(toRow(s));
+      if (!e2) inserted++;
+      else if (/duplicate key/.test(e2.message)) dupSkip++;
+      else { failed++; }
     }
   }
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`  삽입 완료         ${inserted}`);
-  console.log(`  기존 중복 스킵    ${seeds.length - fresh.length}`);
+  console.log(`  기존 중복 스킵    ${seeds.length - fresh.length + dupSkip}`);
   console.log(`  실패              ${failed}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n→ 지도(/) 접속해서 마커 확인.");

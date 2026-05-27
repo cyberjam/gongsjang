@@ -36,6 +36,8 @@ if (!Array.isArray(raw) || raw.length === 0) {
 const seeds = [];
 let skipNoName = 0;
 let skipNoCoord = 0;
+let dupId = 0;
+const seenId = new Set();
 
 for (const p of raw) {
   const name = (p.parkNm || p.parkNmKor || "").trim();
@@ -53,9 +55,16 @@ for (const p of raw) {
       : null;
 
   const address = (p.rdnmadr || p.lnmadr || "").trim() || null;
-  const externalId = p.manageNo
+  let externalId = p.manageNo
     ? `park:${p.manageNo}`
     : `park:${lat.toFixed(5)},${lng.toFixed(5)}`;
+
+  // external_id 중복 제거 — 충돌 시 좌표+이름으로 고유화, 그래도 충돌이면 스킵
+  if (seenId.has(externalId)) {
+    externalId = `park:${lat.toFixed(6)},${lng.toFixed(6)}:${name}`;
+    if (seenId.has(externalId)) { dupId++; continue; }
+  }
+  seenId.add(externalId);
 
   seeds.push({
     external_id: externalId,
@@ -80,6 +89,7 @@ console.log("━━━━━━━━━━━━━━━━━━━━━━�
 console.log(`  원본 공원        ${raw.length}`);
 console.log(`  이름 없음 제외   ${skipNoName}`);
 console.log(`  좌표 무효 제외   ${skipNoCoord}`);
+console.log(`  ID 중복 제외     ${dupId}`);
 console.log(`  생성 시드        ${seeds.length}  (limit ${LIMIT === Infinity ? "전체" : LIMIT})`);
 console.log(`  → ${OUT}`);
 
