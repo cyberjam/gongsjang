@@ -55,6 +55,9 @@ let skippedByGeo = 0;
 let failed = 0;
 const insertedByDong = {};
 
+// locations_within RPC 가 없으면 좌표 dedup 비활성화 (external_id 만으로 중복 방지)
+let geoDedup = true;
+
 for (const s of seeds) {
   if (s.source && s.external_id) {
     const { data: exist } = await supabase
@@ -66,15 +69,22 @@ for (const s of seeds) {
     if (exist) { skippedByExt++; continue; }
   }
 
-  const { data: near, error: nearErr } = await supabase.rpc("locations_within", {
-    in_lat: s.lat, in_lng: s.lng, in_meters: 30,
-  });
-  if (nearErr) {
-    console.error(`  rpc 실패: ${s.name} — ${nearErr.message}`);
-    failed++;
-    continue;
+  if (geoDedup) {
+    const { data: near, error: nearErr } = await supabase.rpc("locations_within", {
+      in_lat: s.lat, in_lng: s.lng, in_meters: 30,
+    });
+    if (nearErr) {
+      // 함수 미존재 등 → 좌표 dedup 비활성화하고 계속 (external_id 만으로 중복 방지)
+      console.warn(
+        `  ⚠️  locations_within RPC 없음 — 좌표 dedup 끄고 진행 ` +
+          `(권장: supabase/schema.sql 의 함수 정의 실행)`,
+      );
+      geoDedup = false;
+    } else if (near && near.length > 0) {
+      skippedByGeo++;
+      continue;
+    }
   }
-  if (near && near.length > 0) { skippedByGeo++; continue; }
 
   const { error } = await supabase.from("locations").insert({
     name: s.name,
