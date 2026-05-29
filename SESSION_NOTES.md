@@ -109,7 +109,7 @@ create function locations_within(in_lat, in_lng, in_meters) ...  -- Haversine RP
 6. **schema_init.sql 별도 분리** — 컬럼·RPC 마이그레이션이 Supabase에서 누락되는 사고가 두 번 있었음. 명시 분리 + README 안내 추가하면 안전.
 
 ## 빌드/실행 환경 & 자동화
-- **Node 24.16.0 고정**: `.nvmrc`/`.node-version`/`engines`(`>=24.16.0`) + `.npmrc`(`engine-strict=true`). 새 셸에서 `nvm use`.
+- **Node 24 고정**: `.nvmrc`/`.node-version`(`24`) + `engines`(`24.x`) + `.npmrc`(`engine-strict=true`). Vercel 이 24.15 라 정확한 패치핀 대신 24 메이저로. 새 셸에서 `nvm use`.
 - npm 시드 스크립트는 `--env-file-if-exists=.env.local` — 로컬은 파일에서, CI 는 env 에서 키 읽음.
 - **`seed:all`** = `seed:eqmt && seed:import eqmt && seed:parks && seed:import parks`. `seed:fetch` 안내도 `seed:all` 로 변경됨.
 - **테스트**: `npm test`(=`node --test`), `test/seed-lib.test.mjs` — recoverCoords/matchesPullup/eqmtStableId/지오코더, 의존성 0.
