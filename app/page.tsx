@@ -29,12 +29,17 @@ async function fetchAll<T>(
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
   const [locResult, recResult, { count: stagesCount }] = await Promise.all([
-    fetchAll<Location>((from, to) =>
-      supabase
-        .from("locations")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, to),
+    // 마커에 필요한 컬럼만 — 초기 페이로드 축소 (description/source/external_id 등 제외)
+    fetchAll<Location>(
+      (from, to) =>
+        supabase
+          .from("locations")
+          .select("id, name, address, lat, lng")
+          .order("created_at", { ascending: false })
+          .range(from, to) as unknown as PromiseLike<{
+          data: Location[] | null;
+          error: { message: string } | null;
+        }>,
     ),
     fetchAll<Pick<RecordRow, "location_id" | "record_type" | "value" | "nickname">>(
       (from, to) =>
