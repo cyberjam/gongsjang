@@ -4,8 +4,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Location, RecordRow, RecordType } from "@/lib/types";
 import { RECORD_TYPES } from "@/lib/types";
 import RankingTabs from "@/components/RankingTabs";
+import VisitCheckIn from "@/components/VisitCheckIn";
 
 export const dynamic = "force-dynamic";
+
+type ClanOption = { id: string; name: string; color: string };
 
 export default async function LocationDetailPage({
   params,
@@ -30,6 +33,14 @@ export default async function LocationDetailPage({
     .eq("location_id", params.id);
 
   const records: RecordRow[] = recordsData ?? [];
+
+  // 체크인용 문파 목록 (clans 미적용 시 빈 배열 → 체크인 숨김)
+  const { data: clansData } = await supabase
+    .from("clans")
+    .select("id, name, color")
+    .order("name");
+  const clans: ClanOption[] = (clansData as ClanOption[]) ?? [];
+
   const activeType: RecordType = (RECORD_TYPES.find(
     (t) => t.value === searchParams.type,
   )?.value ?? "pullup") as RecordType;
@@ -71,6 +82,9 @@ export default async function LocationDetailPage({
           </p>
         )}
       </header>
+
+      {/* 방문 인증 — 점령 게임 핵심 액션 */}
+      <VisitCheckIn locationId={loc.id} clans={clans} />
 
       {/* 2. TOP3 + 3. 전체 랭킹 */}
       <RankingTabs
