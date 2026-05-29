@@ -5,11 +5,10 @@ export type Title = { name: string; minDays: number };
 
 // minDays 내림차순 — 높은 칭호부터 매칭
 export const TITLES: Title[] = [
-  { name: "무림지존", minDays: 180 },
-  { name: "절정고수", minDays: 90 },
-  { name: "하급고수", minDays: 30 },
-  { name: "입문무사", minDays: 7 },
-  { name: "수련생", minDays: 0 },
+  { name: "청주시 철왕", minDays: 100 },
+  { name: "철봉 헌터", minDays: 30 },
+  { name: "동네 순찰자", minDays: 7 },
+  { name: "철린이", minDays: 0 },
 ];
 
 export function titleForDays(days: number): string {
