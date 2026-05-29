@@ -28,19 +28,27 @@ async function fetchAll<T>(
 
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
-  const [locResult, recResult, { count: stagesCount }] = await Promise.all([
-    // 마커 필요한 컬럼 + 점령 문파(색) embed — 초기 페이로드 최소
+
+  // 마커 컬럼 + 점령 문파(색) embed. 컬럼/관계 미적용(스키마 미반영) 시 embed 빼고 폴백.
+  const loadLocations = (withClan: boolean) =>
     fetchAll<Location & { clan: ClanBadge | null }>(
       (from, to) =>
         supabase
           .from("locations")
-          .select("id, name, address, lat, lng, clan:clans(name, color)")
+          .select(
+            withClan
+              ? "id, name, address, lat, lng, clan:clans(name, color)"
+              : "id, name, address, lat, lng",
+          )
           .order("created_at", { ascending: false })
           .range(from, to) as unknown as PromiseLike<{
           data: (Location & { clan: ClanBadge | null })[] | null;
           error: { message: string } | null;
         }>,
-    ),
+    );
+
+  const [locTry, recResult, { count: stagesCount }] = await Promise.all([
+    loadLocations(true),
     fetchAll<Pick<RecordRow, "location_id" | "record_type" | "value" | "nickname">>(
       (from, to) =>
         supabase
@@ -50,6 +58,13 @@ export default async function HomePage() {
     ),
     supabase.from("locations").select("*", { count: "exact", head: true }),
   ]);
+
+  // 문파 관계가 스키마 캐시에 없으면(아직 마이그레이션 전) embed 빼고 재시도 → 지도는 정상
+  let locResult = locTry;
+  if (locResult.error) {
+    console.warn(`[home] 문파 embed 실패 → 폴백: ${locResult.error.message}`);
+    locResult = await loadLocations(false);
+  }
 
   const { rows: locations, error } = locResult;
   const records = recResult.rows;
