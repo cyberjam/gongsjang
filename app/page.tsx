@@ -1,6 +1,6 @@
 import KakaoMap from "@/components/KakaoMap";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Location, LocationWithStats, RecordRow } from "@/lib/types";
+import type { ClanBadge, Location, LocationWithStats, RecordRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +29,15 @@ async function fetchAll<T>(
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
   const [locResult, recResult, { count: stagesCount }] = await Promise.all([
-    // 마커에 필요한 컬럼만 — 초기 페이로드 축소 (description/source/external_id 등 제외)
-    fetchAll<Location>(
+    // 마커 필요한 컬럼 + 점령 문파(색) embed — 초기 페이로드 최소
+    fetchAll<Location & { clan: ClanBadge | null }>(
       (from, to) =>
         supabase
           .from("locations")
-          .select("id, name, address, lat, lng")
+          .select("id, name, address, lat, lng, clan:clans(name, color)")
           .order("created_at", { ascending: false })
           .range(from, to) as unknown as PromiseLike<{
-          data: Location[] | null;
+          data: (Location & { clan: ClanBadge | null })[] | null;
           error: { message: string } | null;
         }>,
     ),
@@ -73,7 +73,7 @@ export default async function HomePage() {
     byLocation.set(r.location_id, list);
   });
 
-  const enriched: LocationWithStats[] = (locations ?? []).map((loc: Location) => {
+  const enriched: LocationWithStats[] = (locations ?? []).map((loc) => {
     const rs = byLocation.get(loc.id) ?? [];
     const pullups = rs.filter((r) => r.record_type === "pullup");
     const top = pullups.length
