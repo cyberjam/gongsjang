@@ -124,14 +124,8 @@ type MarkerOverlayEntry = {
   onClick: (e: Event) => void;
 };
 
-// 성능 계측 — 개발 모드에서만 (프로덕션 무부하)
+// 성능 로그 — 개발 모드에서만 (프로덕션 무부하)
 const PERF = process.env.NODE_ENV !== "production";
-const tStart = (label: string) => {
-  if (PERF) console.time(label);
-};
-const tEnd = (label: string) => {
-  if (PERF) console.timeEnd(label);
-};
 
 export default function KakaoMap({
   locations,
@@ -174,7 +168,6 @@ export default function KakaoMap({
 
         // 이미 만든 맵이 있으면 그대로 재사용 (StrictMode 등에서 안전)
         if (!mapRef.current) {
-          tStart("[map] init");
           const map = new kakao.maps.Map(containerRef.current, {
             // 기본 중심: 청주시청 (활성 지역 청주·오송 기준)
             center: new kakao.maps.LatLng(36.6424, 127.489),
@@ -185,7 +178,6 @@ export default function KakaoMap({
           const onMapClick = () => setSelected(null);
           kakao.maps.event.addListener(map, "click", onMapClick);
           mapClickListenerRef.current = onMapClick;
-          tEnd("[map] init");
         }
 
         // 현재 위치 1회만 (이미 받았으면 스킵)
@@ -299,124 +291,145 @@ export default function KakaoMap({
     const onMap = new Set<string>(); // 현재 map 에 attach 된 id
     let last = { sw: NaN, sn: NaN, ne: NaN, nn: NaN }; // 직전 bounds (동일하면 skip)
 
+    let chunkRaf = 0; // 진행 중인 chunk 렌더 rAF
+    let seq = 0; // 렌더 토큰 — 새 렌더가 시작되면 이전 chunk 폐기
+    let firstLogged = false;
+    const tEffect =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
     const computeAndRender = () => {
-      tStart("[map] bounds update");
-      const bounds = map.getBounds();
-      if (!bounds) {
-        tEnd("[map] bounds update");
-        return;
+      const mySeq = ++seq;
+      if (chunkRaf) {
+        cancelAnimationFrame(chunkRaf);
+        chunkRaf = 0;
       }
+
+      const bounds = map.getBounds();
+      if (!bounds) return;
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
       const swLat = sw.getLat();
       const swLng = sw.getLng();
       const neLat = ne.getLat();
       const neLng = ne.getLng();
-      tEnd("[map] bounds update");
 
-      // memoization — bounds 가 직전과 같으면 재계산 불필요
-      if (
-        swLat === last.sw &&
-        swLng === last.sn &&
-        neLat === last.ne &&
-        neLng === last.nn
-      ) {
+      // bounds 가 직전과 같으면 재계산 skip
+      if (swLat === last.sw && swLng === last.sn && neLat === last.ne && neLng === last.nn) {
         return;
       }
       last = { sw: swLat, sn: swLng, ne: neLat, nn: neLng };
 
-      // 1) viewport 안의 대상 id (수치 비교, cap)
-      tStart("[map] visible filtering");
+      // viewport 안의 대상 id (LatLng/contain 대신 수치 비교, cap)
       const targetIds = new Set<string>();
       for (let i = 0; i < locations.length; i++) {
         const loc = locations[i];
-        if (
-          loc.lat >= swLat &&
-          loc.lat <= neLat &&
-          loc.lng >= swLng &&
-          loc.lng <= neLng
-        ) {
+        if (loc.lat >= swLat && loc.lat <= neLat && loc.lng >= swLng && loc.lng <= neLng) {
           targetIds.add(loc.id);
           if (targetIds.size >= MAX_VISIBLE) break;
         }
       }
-      tEnd("[map] visible filtering");
 
-      // 2) overlay attach/detach (재사용)
-      tStart("[map] overlay render");
-      let created = 0;
-      // 화면 밖으로 나간 것 → detach (pool 에 보존, setMap(null) 1회만)
+      // 화면 밖 → detach (DOM 은 setMap(null) 로 문서에서 제거, 객체는 pool 보존)
       for (const id of onMap) {
         if (!targetIds.has(id)) {
           pool.get(id)?.overlay.setMap(null);
           onMap.delete(id);
         }
       }
-      // 새로 들어온 것 → pool 재사용 or 생성 후 attach
+
+      // 신규 attach 대상 수집 → chunk 렌더 (긴 동기 작업 방지: TBT↓, 프레임드랍↓)
+      const toAttach: LocationWithStats[] = [];
       for (let i = 0; i < locations.length; i++) {
         const loc = locations[i];
-        if (!targetIds.has(loc.id) || onMap.has(loc.id)) continue;
-        let entry = pool.get(loc.id);
-        if (!entry) {
-          entry = makeEntry(loc);
-          pool.set(loc.id, entry);
-          created++;
-        }
-        entry.el.dataset.selected =
-          loc.id === selectedIdRef.current ? "true" : "false";
-        entry.overlay.setMap(map);
-        onMap.add(loc.id);
-      }
-      tEnd("[map] overlay render");
-
-      // pool 상한 초과 시 화면 밖 항목부터 폐기 (메모리 누수 방지)
-      if (pool.size > POOL_MAX) {
-        for (const [id, entry] of pool) {
-          if (pool.size <= POOL_MAX) break;
-          if (onMap.has(id)) continue;
-          entry.overlay.setMap(null);
-          entry.el.removeEventListener("click", entry.onClick);
-          pool.delete(id);
-        }
+        if (targetIds.has(loc.id) && !onMap.has(loc.id)) toAttach.push(loc);
       }
 
-      markerOverlaysRef.current = Array.from(onMap, (id) => pool.get(id)!);
-      if (PERF) {
-        console.log(
-          `[map] total=${locations.length} onMap=${onMap.size} pool=${pool.size} created+=${created}` +
-            (targetIds.size >= MAX_VISIBLE ? ` (capped ${MAX_VISIBLE})` : ""),
-        );
-      }
+      const CHUNK = 120;
+      let idx = 0;
+      const flush = () => {
+        if (mySeq !== seq) return; // 더 최신 렌더가 시작됨 → 폐기
+        const end = Math.min(idx + CHUNK, toAttach.length);
+        for (; idx < end; idx++) {
+          const loc = toAttach[idx];
+          let entry = pool.get(loc.id);
+          if (!entry) {
+            entry = makeEntry(loc);
+            pool.set(loc.id, entry);
+          }
+          entry.el.dataset.selected = loc.id === selectedIdRef.current ? "true" : "false";
+          entry.overlay.setMap(map);
+          onMap.add(loc.id);
+        }
+        if (idx < toAttach.length) {
+          chunkRaf = requestAnimationFrame(flush);
+          return;
+        }
+        chunkRaf = 0;
+
+        // pool 상한 초과분(화면 밖)부터 폐기 — 메모리 누수 방지
+        if (pool.size > POOL_MAX) {
+          for (const [id, entry] of pool) {
+            if (pool.size <= POOL_MAX) break;
+            if (onMap.has(id)) continue;
+            entry.overlay.setMap(null);
+            entry.el.removeEventListener("click", entry.onClick);
+            pool.delete(id);
+          }
+        }
+        markerOverlaysRef.current = Array.from(onMap, (id) => pool.get(id)!);
+
+        if (PERF && !firstLogged) {
+          firstLogged = true;
+          const ms =
+            (typeof performance !== "undefined" ? performance.now() : Date.now()) - tEffect;
+          console.log(
+            `[map] initial render ${ms.toFixed(0)}ms · visible ${onMap.size} · total ${locations.length}`,
+          );
+        }
+      };
+      flush();
     };
 
-    // idle → debounce → rAF (pan/zoom 중 연속 재계산·레이아웃 방지)
+    // idle → debounce(120ms) → rAF (pan/zoom 중 연속 재계산 방지)
+    // 단, 최초 idle 은 디바운스 없이 즉시 렌더(초기 마커 지연 방지)
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let rafId = 0;
+    let firstIdle = true;
+    const renderNextFrame = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        computeAndRender();
+      });
+    };
     const schedule = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          rafId = 0;
-          computeAndRender();
-        });
+        renderNextFrame();
       }, 120);
     };
 
-    // 첫 마커 중심 1회 (사용자 위치 없을 때만) → 초기 1회는 즉시 렌더
+    // 첫 마커 중심 1회 (사용자 위치 없을 때만). overlay 생성은 idle 이후로 미룸.
     if (locations[0] && !myPosRef.current) {
       map.setCenter(new kakao.maps.LatLng(locations[0].lat, locations[0].lng));
     }
-    computeAndRender();
 
-    const onIdle = () => schedule();
+    const onIdle = () => {
+      if (firstIdle) {
+        firstIdle = false;
+        renderNextFrame();
+      } else {
+        schedule();
+      }
+    };
     kakao.maps.event.addListener(map, "idle", onIdle);
 
     return () => {
       kakao.maps.event.removeListener(map, "idle", onIdle);
       if (debounceTimer) clearTimeout(debounceTimer);
       if (rafId) cancelAnimationFrame(rafId);
+      if (chunkRaf) cancelAnimationFrame(chunkRaf);
       for (const entry of pool.values()) {
         entry.overlay.setMap(null);
         entry.el.removeEventListener("click", entry.onClick);
