@@ -2,20 +2,25 @@
   "name": "gongsjang",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed:fetch": "node --env-file=.env.local scripts/fetch-public-data.mjs",
-    "seed:build": "node --env-file=.env.local scripts/build-seeds.mjs",
-    "seed:parks": "node --env-file=.env.local scripts/build-parks-demo.mjs",
-    "seed:eqmt": "node --env-file=.env.local scripts/build-eqmt-demo.mjs",
+    "test": "node --test",
+    "seed:fetch": "node --env-file-if-exists=.env.local scripts/fetch-public-data.mjs",
+    "seed:build": "node --env-file-if-exists=.env.local scripts/build-seeds.mjs",
+    "seed:parks": "node --env-file-if-exists=.env.local scripts/build-parks-demo.mjs",
+    "seed:eqmt": "node --env-file-if-exists=.env.local scripts/build-eqmt-demo.mjs",
     "seed:osm": "node scripts/fetch-osm.mjs",
-    "seed:import": "node --env-file=.env.local scripts/import-seeds.mjs",
-    "seed:import:parks": "node --env-file=.env.local scripts/import-seeds.mjs supabase/seeds/parks-demo.json",
-    "seed:import:eqmt": "node --env-file=.env.local scripts/import-seeds.mjs supabase/seeds/eqmt-demo.json",
-    "seed:import:osm": "node --env-file=.env.local scripts/import-seeds.mjs supabase/seeds/cheongju.osm.json"
+    "seed:import": "node --env-file-if-exists=.env.local scripts/import-seeds.mjs",
+    "seed:import:parks": "node --env-file-if-exists=.env.local scripts/import-seeds.mjs supabase/seeds/parks-demo.json",
+    "seed:import:eqmt": "node --env-file-if-exists=.env.local scripts/import-seeds.mjs supabase/seeds/eqmt-demo.json",
+    "seed:import:osm": "node --env-file-if-exists=.env.local scripts/import-seeds.mjs supabase/seeds/cheongju.osm.json",
+    "seed:all": "npm run seed:eqmt && npm run seed:import eqmt && npm run seed:parks && npm run seed:import parks"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

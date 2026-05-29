@@ -34,10 +34,17 @@ create function locations_within(in_lat, in_lng, in_meters) ...  -- Haversine RP
 |---|---|
 | `seed:fetch` | data.go.kr 전국실외운동기구(15139207) + 전국도시공원(15012890) → `supabase/raw/*.json` |
 | `seed:build` | 청주 bbox + 철봉 키워드 + priority (청주 철봉 0건이라 사실상 미사용) |
-| `seed:parks` | 도시공원 최소 시드 → `parks-demo.json` (`PARKS_LIMIT` env) |
-| `seed:eqmt` | 실외운동기구 최소 시드 → `eqmt-demo.json` (`EQMT_LIMIT` env) |
+| `seed:parks` | 도시공원 전국 시드 → `parks-demo.json` (좌표복구+지오코딩, `PARKS_LIMIT` env) |
+| `seed:eqmt` | 실외운동기구 → 철봉 전국 시드 → `eqmt-demo.json` (**엄격 matchesPullup** + 좌표복구+지오코딩, `EQMT_LIMIT` env) |
 | `seed:osm` | Overpass API 청주 bbox → `cheongju.osm.json` |
 | `seed:import [p1|p2|all|etc|parks|eqmt|osm|<path>]` | batch insert + 행 fallback + RPC 부재 시 좌표 dedup 자동 OFF |
+
+**좌표 예외 복구 (scripts/lib)**:
+- `recoverCoords(lat,lng)` — 스왑/범위 오프라인 교정, 한국 bbox 밖 제외 (`cheongju.mjs`)
+- `createGeocoder({restKey})` — 카카오 주소→좌표, 디스크 캐시 `supabase/cache/geocode.json` (`geocode.mjs`)
+  - `KAKAO_REST_API_KEY` 필요(REST 키). 없으면 좌표 없는 행은 `*-dropped.json` 에 기록 후 제외.
+- dedup 키 `eqmtStableId` — 좌표 무관(관리번호/내용 해시) → 지오코딩으로 좌표 바뀌어도 재실행 시 중복 X
+- 철봉 매칭: `build-eqmt-demo` 가 이제 `matchesPullup`(거꾸리·하늘타기·윗몸·사이클 제외) 사용. 기존 단순 `includes` 폐기.
 
 **필드 매핑 (실외운동기구는 비표준 약어)**:
 `sprtgdNm`→기구명, `lat`/`lot`→좌표, `lctnRoadNmAddr`/`lctnLotnoAddr`→주소, `instlPlcNm`→장소. `normalizeEqmt()` in `scripts/lib/cheongju.mjs`.
@@ -93,12 +100,21 @@ create function locations_within(in_lat, in_lng, in_meters) ...  -- Haversine RP
 - `ef07ed5` CLAUDE.md 디자인 직시
 
 ## 열린 이슈 / 다음 작업 후보
-1. **청주 철봉 실데이터** — `npm run seed:osm` 한 번 돌려보기 (OSM 청주 커버리지 얕음 예상). 비면 수동 시드.
-2. **CHALLENGES 카운터**도 exact count 적용 여부
-3. **지도 마커 1000+** — 현재 `app/page.tsx`의 locations select가 Supabase 기본 1000 limit. 진짜로 1000+ 마커 보이게 하려면 viewport-bbox 서버 fetch API route 필요.
+1. ~~**지도 마커 1000+**~~ ✅ `app/page.tsx` 가 range 페이지네이션으로 전체 로드(1000 cap 해제). KakaoMap viewport culling 으로 렌더는 보이는 것만. 단 **목록 페이지(`/locations`)는 아직 1000 cap** — 전국 평면 리스트는 UX/페이징 별도 설계 필요.
+2. **전국 철봉 적재 실행** — `seed:fetch → seed:eqmt → seed:import eqmt` 를 로컬에서 실행(이 환경은 data.go.kr/supabase outbound 차단). 좌표 없는 행까지 살리려면 `KAKAO_REST_API_KEY` 세팅 후 `seed:eqmt` 재실행하면 지오코딩 복구.
+3. RSC payload — 전국 수천 행을 매 요청 직렬화. 더 커지면 viewport-bbox 서버 fetch API route 로 전환(원래 계획).
+4. **CHALLENGES 카운터**도 exact count 적용 여부
 4. **마커 클러스터링** — 현재 viewport culling + 400 캡으로 충분. 데이터 더 늘면 필요.
 5. **상세페이지 도장감 강화** — 보스/방명록/역대 마스터는 한 번 적용 후 revert됨. 사용자가 다시 원하면 lib/dojo.ts 부활.
 6. **schema_init.sql 별도 분리** — 컬럼·RPC 마이그레이션이 Supabase에서 누락되는 사고가 두 번 있었음. 명시 분리 + README 안내 추가하면 안전.
+
+## 빌드/실행 환경 & 자동화
+- **Node 24 고정**: `.nvmrc`/`.node-version`(`24`) + `engines`(`24.x`) + `.npmrc`(`engine-strict=true`). Vercel 이 24.15 라 정확한 패치핀 대신 24 메이저로. 새 셸에서 `nvm use`.
+- npm 시드 스크립트는 `--env-file-if-exists=.env.local` — 로컬은 파일에서, CI 는 env 에서 키 읽음.
+- **`seed:all`** = `seed:eqmt && seed:import eqmt && seed:parks && seed:import parks`. `seed:fetch` 안내도 `seed:all` 로 변경됨.
+- **테스트**: `npm test`(=`node --test`), `test/seed-lib.test.mjs` — recoverCoords/matchesPullup/eqmtStableId/지오코더, 의존성 0.
+- **CI**: `.github/workflows/ci.yml`(push/PR → test+build), `.github/workflows/seed.yml`(수동 dispatch → fetch+seed:all, secrets 필요).
+- 시드를 Vercel 대신 Actions 로 두는 이유: service_role 대량 insert + 수 분 배치라 호스팅(Vercel)보다 CI 가 적합.
 
 ## 진행 컨벤션
 - 브랜치: `main` 직접 푸시 (Vercel 자동 배포)

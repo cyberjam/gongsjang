@@ -4,21 +4,54 @@ import type { Location, LocationWithStats, RecordRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+// Supabase 단일 select 는 최대 1000행. 전국 철봉(수천 건)을 전부 표시하려면
+// range() 로 끝까지 페이지네이션해서 모든 행을 가져온다.
+// (지도 마커는 KakaoMap 이 viewport culling 으로 보이는 것만 렌더하므로 안전)
+const PAGE = 1000;
+
+async function fetchAll<T>(
+  build: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<{ rows: T[]; error: { message: string } | null }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) return { rows, error };
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return { rows, error: null };
+}
+
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
-  const [{ data: locations, error }, { data: records }, { count: stagesCount }] =
-    await Promise.all([
+  const [locResult, recResult, { count: stagesCount }] = await Promise.all([
+    fetchAll<Location>((from, to) =>
       supabase
         .from("locations")
         .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("records")
-        .select("location_id, record_type, value, nickname"),
-      supabase.from("locations").select("*", { count: "exact", head: true }),
-    ]);
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    ),
+    fetchAll<Pick<RecordRow, "location_id" | "record_type" | "value" | "nickname">>(
+      (from, to) =>
+        supabase
+          .from("records")
+          .select("location_id, record_type, value, nickname")
+          .range(from, to),
+    ),
+    supabase.from("locations").select("*", { count: "exact", head: true }),
+  ]);
 
-  console.log(`[home] locations total count = ${stagesCount ?? "?"}`);
+  const { rows: locations, error } = locResult;
+  const records = recResult.rows;
+
+  console.log(
+    `[home] locations total count = ${stagesCount ?? "?"} (fetched ${locations.length})`,
+  );
 
   if (error) {
     return (

@@ -279,7 +279,7 @@ async function main() {
     }
   }
 
-  console.log("다음: npm run seed:build");
+  console.log("다음: npm run seed:all  (철봉 빌드+적재 + 공원 빌드+적재 한 번에)");
 }
 
 main().catch((e) => {
