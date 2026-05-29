@@ -718,11 +718,24 @@ function StageSheet({
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-arcade-border" />
 
         <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className={`arcade-chip ${tierClass}`}>{tierLabel}</span>
+            {/* 점령전 — 현재 점령 문파 (무주공산이면 회색) */}
+            {location.clan ? (
+              <span
+                className="arcade-chip truncate"
+                style={{ borderColor: location.clan.color, color: location.clan.color }}
+              >
+                {location.clan.name}
+              </span>
+            ) : (
+              <span className="arcade-chip border-arcade-border text-zinc-500">
+                무주공산
+              </span>
+            )}
             <span className="arcade-label-wide">STAGE INFO</span>
           </div>
-          <span className="arcade-label">지도 탭 ▸ 닫기</span>
+          <span className="arcade-label shrink-0">지도 탭 ▸ 닫기</span>
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
