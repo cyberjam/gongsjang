@@ -3,20 +3,55 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { distanceMeters } from "@/lib/geo";
 
 // 기록 폼과 닉네임 공유 + 선택 문파 기억
 const NICK_KEY = "gongsjang_nickname";
 const CLAN_KEY = "gongsjang_clan";
+// 허위 인증 방지 — 철봉 좌표 기준 이 반경(m) 안에서만 인증 허용
+const CHECKIN_RADIUS_M = 50;
 
 type Clan = { id: string; name: string; color: string };
+
+// 현재 위치 1회 조회 (Promise). 모바일 Safari/Chrome 대응: https + 사용자 제스처(버튼) 내 호출.
+function getPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject({ code: 0 });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 0,
+    });
+  });
+}
+
+function geoErrorMessage(code: number): string {
+  switch (code) {
+    case 1:
+      return "위치 권한이 거부됐다. 브라우저 설정에서 위치 허용 후 다시.";
+    case 2:
+      return "위치를 잡지 못했다. 신호 트인 곳에서 다시.";
+    case 3:
+      return "위치 확인이 지연됐다. 다시 시도해라.";
+    default:
+      return "이 기기는 위치를 지원하지 않는다.";
+  }
+}
 
 // 방문 인증(체크인) — 같은 장소 하루 1회. 방문은 선택한 문파 기여로 집계되어
 // 트리거가 점령을 재계산한다. (QR/GPS 검증은 후속 — TODO)
 export default function VisitCheckIn({
   locationId,
+  lat,
+  lng,
   clans,
 }: {
   locationId: string;
+  lat: number;
+  lng: number;
   clans: Clan[];
 }) {
   const router = useRouter();
@@ -40,6 +75,27 @@ export default function VisitCheckIn({
     if (!clanId) return setError("소속 문파를 골라라.");
 
     setLoading(true);
+
+    // 1) GPS 반경 검증 — 철봉 50m 이내에서만 인증
+    let pos: GeolocationPosition;
+    try {
+      pos = await getPosition();
+    } catch (e: any) {
+      setLoading(false);
+      return setError(geoErrorMessage(e?.code ?? 0));
+    }
+    const dist = distanceMeters(
+      { lat, lng },
+      { lat: pos.coords.latitude, lng: pos.coords.longitude },
+    );
+    if (dist > CHECKIN_RADIUS_M) {
+      setLoading(false);
+      return setError(
+        `철봉에서 ${Math.round(dist)}m 떨어져 있다. ${CHECKIN_RADIUS_M}m 안에서 인증 가능.`,
+      );
+    }
+
+    // 2) 방문 기록
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
       .from("visits")
@@ -64,7 +120,10 @@ export default function VisitCheckIn({
 
   return (
     <div className="arcade-card-feature space-y-3 p-3">
-      <div className="arcade-label-wide">이 구역 점령</div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="arcade-label-wide">이 구역 점령</span>
+        <span className="arcade-label">GPS {CHECKIN_RADIUS_M}m 이내</span>
+      </div>
 
       {done ? (
         <p
@@ -115,7 +174,7 @@ export default function VisitCheckIn({
             disabled={loading}
             className="arcade-btn-primary font-display w-full py-3 text-lg leading-none tracking-[0.18em] disabled:opacity-60"
           >
-            {loading ? "인증 중…" : "▶ 방문 인증"}
+            {loading ? "위치 확인 중…" : "▶ 방문 인증"}
           </button>
         </>
       )}

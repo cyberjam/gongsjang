@@ -84,7 +84,7 @@ export default async function LocationDetailPage({
       </header>
 
       {/* 방문 인증 — 점령 게임 핵심 액션 */}
-      <VisitCheckIn locationId={loc.id} clans={clans} />
+      <VisitCheckIn locationId={loc.id} lat={loc.lat} lng={loc.lng} clans={clans} />
 
       {/* 2. TOP3 + 3. 전체 랭킹 */}
       <RankingTabs
