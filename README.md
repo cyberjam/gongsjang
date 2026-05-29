@@ -65,6 +65,37 @@ npm run dev
 
 http://localhost:3000
 
+## 전국 철봉 시드 채우기 (data.go.kr)
+
+공공데이터로 전국 철봉 위치를 채운다. 좌표가 비었거나 뒤바뀐 "예외" 행도
+복구해서 누락을 최소화한다.
+
+```bash
+# 1) 전국 raw 수집 (실외운동기구 + 도시공원) → supabase/raw/*.json
+npm run seed:fetch
+
+# 2) 시드 빌드
+npm run seed:eqmt    # 실외운동기구 → 철봉 (엄격 매칭: 거꾸리·하늘타기 등 제외)
+npm run seed:parks   # 도시공원 → 스테이지
+
+# 3) Supabase 적재 (재실행해도 external_id 로 중복 방지)
+npm run seed:import eqmt
+npm run seed:import parks
+```
+
+**좌표 예외 복구 정책**
+
+1. lat/lng 가 뒤바뀐 행은 자동 교정, 한국 bbox 밖은 제외
+2. 좌표가 아예 없고 주소만 있는 행은 **카카오 주소→좌표 지오코딩**으로 복구
+   - `.env.local` 에 `KAKAO_REST_API_KEY`(REST 키, JS 키와 다름) 필요
+   - 결과는 `supabase/cache/geocode.json` 에 캐시 → 재실행 시 API 재호출 없음
+   - 키가 없으면 해당 행은 제외되고 `supabase/raw/*-dropped.json` 에 사유 기록
+3. 중복 방지: 좌표와 무관한 안정 `external_id`(관리번호/내용 해시) 사용 →
+   지오코딩으로 좌표가 바뀌어도 재실행 시 같은 장소는 다시 추가되지 않음
+
+> 지도(`/`)는 1000행 제한 없이 전체를 불러오고, 화면에 보이는 마커만
+> 렌더(viewport culling)한다.
+
 ## 디렉토리
 
 ```

@@ -1,6 +1,43 @@
 // 공스장 — 청주·오송 생활권 시드 빌더 공용 유틸
 // (Node ESM — 의존성 없이 동작)
 
+import { createHash } from "node:crypto";
+
+// ─── 대한민국 전체 bbox (전국 시드 좌표 검증용) ────────────────────
+// 본토 + 제주 + 울릉/독도까지 넉넉히. 좌표 스왑·범위이탈 판정에 사용.
+export const KOREA_BBOX = {
+  minLat: 33.0,
+  maxLat: 39.5,
+  minLng: 124.5,
+  maxLng: 132.0,
+};
+
+export function inKorea(lat, lng) {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= KOREA_BBOX.minLat &&
+    lat <= KOREA_BBOX.maxLat &&
+    lng >= KOREA_BBOX.minLng &&
+    lng <= KOREA_BBOX.maxLng
+  );
+}
+
+// 좌표 복구 — data.go.kr 표준데이터의 흔한 예외를 오프라인으로 교정.
+//   1) 정상: (lat,lng) 가 한국 bbox 안 → 그대로
+//   2) 스왑: lat/lng 가 뒤바뀜(위도 칸에 경도값) → 자동 교환
+//   3) 그 외(0,0 / 범위이탈 / 결측): null → 호출측에서 지오코딩 또는 제외
+// 반환: { lat, lng, fixed: "ok"|"swap" } | null
+export function recoverCoords(latRaw, lngRaw) {
+  const la = parseFloat(latRaw);
+  const lo = parseFloat(lngRaw);
+  if (Number.isFinite(la) && Number.isFinite(lo)) {
+    if (inKorea(la, lo)) return { lat: la, lng: lo, fixed: "ok" };
+    if (inKorea(lo, la)) return { lat: lo, lng: la, fixed: "swap" };
+  }
+  return null;
+}
+
 // ─── 청주·오송 생활권 bbox (오송/오창/청주 4구 포괄) ───────────────
 export const CHEONGJU_BBOX = {
   minLat: 36.45,
@@ -44,6 +81,7 @@ const PULLUP_PATTERNS = [
   /철\s*봉/,
   /턱\s*걸이/,
   /풀\s*업/,
+  /친\s*업/,
   /현수/,
   /매달리기/,
   /pull[\s_-]?up/i,
@@ -206,4 +244,24 @@ export function eqmtExternalId(eqmt) {
   const lng = Number(eqmt.longitude).toFixed(5);
   const nm = (eqmt.exrcEqmtNm ?? "").replace(/\s+/g, "");
   return `eqmt:${lat},${lng}:${nm}`;
+}
+
+// 좌표에 의존하지 않는 안정적 external_id.
+// 좌표는 스왑 보정·지오코딩으로 재실행마다 달라질 수 있으므로, 중복 방지(dedup)
+// 키는 원본의 불변 식별 정보로 만든다.
+//   1순위: 표준데이터 관리번호 필드(있으면)
+//   2순위: 기구명|도로명|지번|설치장소명 의 sha1 해시
+// 같은 장소·같은 기구는 항상 같은 ID → import 시 (source, external_id) 유니크로 dedup.
+const MANAGE_NO_FIELDS = ["manageNo", "mngNo", "manage_no", "MGT_NO", "mgtNo"];
+
+export function eqmtStableId(raw, norm) {
+  for (const f of MANAGE_NO_FIELDS) {
+    const v = raw?.[f];
+    if (v != null && String(v).trim()) return `eqmt:mng:${String(v).trim()}`;
+  }
+  const parts = [norm.exrcEqmtNm, norm.rdnmadr, norm.lnmadr, norm.instlPlaceNm]
+    .map((s) => (s ?? "").toString().trim())
+    .join("|");
+  const h = createHash("sha1").update(parts).digest("hex").slice(0, 16);
+  return `eqmt:h:${h}`;
 }
