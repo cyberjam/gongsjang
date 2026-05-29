@@ -31,9 +31,14 @@ export type Location = {
   created_at: string;
 };
 
+// 장소를 점령 중인 문파 (지도 마커 색·배지용 최소 정보)
+export type ClanBadge = { name: string; color: string };
+
 export type LocationWithStats = Location & {
   recordCount: number;
   topPullup: { value: number; nickname: string } | null;
+  // 현재 점령 문파 — null = 무주공산(회색)
+  clan?: ClanBadge | null;
 };
 
 export type RecordRow = {
