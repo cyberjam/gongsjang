@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # .nvmrc(24.16.0)로 Node 고정 — 로컬 nvm 과 동일 버전
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests (시드 라이브러리)
+        run: npm test
+
+      # 더미 NEXT_PUBLIC_* 로 타입체크 포함 프로덕션 빌드 검증
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+          NEXT_PUBLIC_KAKAO_MAP_KEY: dummy

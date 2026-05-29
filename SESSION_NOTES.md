@@ -108,6 +108,14 @@ create function locations_within(in_lat, in_lng, in_meters) ...  -- Haversine RP
 5. **상세페이지 도장감 강화** — 보스/방명록/역대 마스터는 한 번 적용 후 revert됨. 사용자가 다시 원하면 lib/dojo.ts 부활.
 6. **schema_init.sql 별도 분리** — 컬럼·RPC 마이그레이션이 Supabase에서 누락되는 사고가 두 번 있었음. 명시 분리 + README 안내 추가하면 안전.
 
+## 빌드/실행 환경 & 자동화
+- **Node 24.16.0 고정**: `.nvmrc`/`.node-version`/`engines`(`>=24.16.0`) + `.npmrc`(`engine-strict=true`). 새 셸에서 `nvm use`.
+- npm 시드 스크립트는 `--env-file-if-exists=.env.local` — 로컬은 파일에서, CI 는 env 에서 키 읽음.
+- **`seed:all`** = `seed:eqmt && seed:import eqmt && seed:parks && seed:import parks`. `seed:fetch` 안내도 `seed:all` 로 변경됨.
+- **테스트**: `npm test`(=`node --test`), `test/seed-lib.test.mjs` — recoverCoords/matchesPullup/eqmtStableId/지오코더, 의존성 0.
+- **CI**: `.github/workflows/ci.yml`(push/PR → test+build), `.github/workflows/seed.yml`(수동 dispatch → fetch+seed:all, secrets 필요).
+- 시드를 Vercel 대신 Actions 로 두는 이유: service_role 대량 insert + 수 분 배치라 호스팅(Vercel)보다 CI 가 적합.
+
 ## 진행 컨벤션
 - 브랜치: `main` 직접 푸시 (Vercel 자동 배포)
 - 커밋: 한글 본문 OK, `https://claude.ai/code/session_...` trailer

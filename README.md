@@ -25,6 +25,16 @@ GPS 기반 동네 철봉 랭킹 웹앱 MVP. 옛날 오락실 점수판 감성으
 
 ## 시작하기
 
+### 0. Node 버전
+
+이 프로젝트는 **Node 24.16.0** 을 사용한다 (`.nvmrc` / `engines` 로 고정,
+`.npmrc` 의 `engine-strict=true` 로 설치 시 강제).
+
+```bash
+nvm install   # .nvmrc 의 24.16.0 설치
+nvm use       # 24.16.0 활성화
+```
+
 ### 1. 의존성 설치
 
 ```bash
@@ -74,14 +84,15 @@ http://localhost:3000
 # 1) 전국 raw 수집 (실외운동기구 + 도시공원) → supabase/raw/*.json
 npm run seed:fetch
 
-# 2) 시드 빌드
-npm run seed:eqmt    # 실외운동기구 → 철봉 (엄격 매칭: 거꾸리·하늘타기 등 제외)
-npm run seed:parks   # 도시공원 → 스테이지
-
-# 3) Supabase 적재 (재실행해도 external_id 로 중복 방지)
-npm run seed:import eqmt
-npm run seed:import parks
+# 2) 빌드 + 적재 한 번에 (철봉 빌드+import + 공원 빌드+import)
+#    재실행해도 external_id 로 중복 방지
+npm run seed:all
 ```
+
+> `seed:all` = `seed:eqmt && seed:import eqmt && seed:parks && seed:import parks`.
+> 단계별로 돌리고 싶으면 개별 스크립트(`seed:eqmt` 등) 사용.
+
+GitHub Actions 로도 돌릴 수 있다 (아래 *CI / 자동화* 참고).
 
 **좌표 예외 복구 정책**
 
@@ -95,6 +106,23 @@ npm run seed:import parks
 
 > 지도(`/`)는 1000행 제한 없이 전체를 불러오고, 화면에 보이는 마커만
 > 렌더(viewport culling)한다.
+
+## CI / 자동화
+
+| 워크플로우 | 트리거 | 하는 일 |
+|---|---|---|
+| `.github/workflows/ci.yml` | push / PR | `npm test`(시드 라이브러리 단위 테스트) + `npm run build` |
+| `.github/workflows/seed.yml` | 수동(`workflow_dispatch`) | `seed:fetch` + `seed:all` 로 Supabase 적재 |
+
+**시드는 왜 Vercel 이 아니라 GitHub Actions?**
+Vercel 은 Next.js 앱 **호스팅**용이다. 시드는 (1) `service_role` 키로 RLS 를
+우회해 다량 insert 하고 (2) 수 분 걸리는 배치라, 요청-응답형 서버리스(Vercel)보다
+시크릿을 들고 길게 도는 **GitHub Actions 수동 실행**이 맞다. 앱 배포는 Vercel,
+데이터 적재는 Actions 로 역할을 나눈다.
+
+`seed.yml` 에 필요한 Repository Secrets (Settings → Secrets → Actions):
+`DATA_GO_KR_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`KAKAO_REST_API_KEY`.
 
 ## 디렉토리
 

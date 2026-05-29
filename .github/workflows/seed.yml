@@ -1,0 +1,38 @@
+name: Seed (수동)
+
+# 전국 철봉/공원을 공공데이터에서 받아 Supabase 에 적재.
+# 네트워크(data.go.kr/supabase) + 시크릿이 필요해 로컬 대신 여기서 돌릴 수 있음.
+# Actions → "Seed (수동)" → Run workflow 로 수동 실행.
+#
+# 필요한 Repository Secrets (Settings → Secrets and variables → Actions):
+#   DATA_GO_KR_API_KEY          (decoded 키)
+#   NEXT_PUBLIC_SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY   (RLS 우회 — 브라우저 노출 금지)
+#   KAKAO_REST_API_KEY          (주소→좌표 지오코딩, 선택)
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fetch (전국 raw)
+        run: npm run seed:fetch
+        env:
+          DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
+
+      - name: Build + Import (철봉 + 공원)
+        run: npm run seed:all
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
