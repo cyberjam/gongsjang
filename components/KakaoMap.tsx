@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LocationWithStats } from "@/lib/types";
 
@@ -124,6 +124,15 @@ type MarkerOverlayEntry = {
   onClick: (e: Event) => void;
 };
 
+// 성능 계측 — 개발 모드에서만 (프로덕션 무부하)
+const PERF = process.env.NODE_ENV !== "production";
+const tStart = (label: string) => {
+  if (PERF) console.time(label);
+};
+const tEnd = (label: string) => {
+  if (PERF) console.timeEnd(label);
+};
+
 export default function KakaoMap({
   locations,
   stagesCount,
@@ -138,6 +147,8 @@ export default function KakaoMap({
   const myMarkerOverlayRef = useRef<any>(null);
   const myMarkerElRef = useRef<HTMLElement | null>(null);
   const markerOverlaysRef = useRef<MarkerOverlayEntry[]>([]);
+  // selected.id 를 ref 로도 들고 있어 마커 effect(B)가 selected 에 의존하지 않게 함
+  const selectedIdRef = useRef<string | null>(null);
   const mapClickListenerRef = useRef<(() => void) | null>(null);
   const locateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<LocationWithStats | null>(null);
@@ -163,6 +174,7 @@ export default function KakaoMap({
 
         // 이미 만든 맵이 있으면 그대로 재사용 (StrictMode 등에서 안전)
         if (!mapRef.current) {
+          tStart("[map] init");
           const map = new kakao.maps.Map(containerRef.current, {
             // 기본 중심: 청주시청 (활성 지역 청주·오송 기준)
             center: new kakao.maps.LatLng(36.6424, 127.489),
@@ -173,6 +185,7 @@ export default function KakaoMap({
           const onMapClick = () => setSelected(null);
           kakao.maps.event.addListener(map, "click", onMapClick);
           mapClickListenerRef.current = onMapClick;
+          tEnd("[map] init");
         }
 
         // 현재 위치 1회만 (이미 받았으면 스킵)
@@ -237,21 +250,23 @@ export default function KakaoMap({
   }, []);
 
   // === Effect B: viewport 내부 마커만 렌더 (성능 최적화) =====================
-  // - 전체 locations 중 현재 지도 bounds 안의 것만 overlay 생성
-  // - bounds 변경(idle) 시 visible 재계산: 화면 밖 제거, 새로 들어온 것 추가
-  // - MAX_VISIBLE 캡으로 밀집 지역 과부하 방지
+  // - 전체 locations 중 현재 지도 bounds 안의 것만 화면에 attach
+  // - overlay 는 pool 에 보관해 재사용 (화면 밖이면 detach 하되 폐기 X → DOM/리스너 재생성 방지)
+  // - idle → debounce(120ms) → requestAnimationFrame 으로 pan 중 연속 재계산 방지
+  // - bounds 는 LatLng/contain 대신 SW/NE 수치 비교 (객체 할당 제거)
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.kakao) return;
     const { kakao } = window;
     const map = mapRef.current;
-    const MAX_VISIBLE = 400;
+    const MAX_VISIBLE = 400; // 동시에 화면에 붙는 최대 마커 (현재 비주얼 유지 위해 그대로)
+    const POOL_MAX = 1200; // 재사용 pool 상한 — 초과분(화면 밖)은 폐기해 메모리 누수 방지
 
     const makeEntry = (loc: LocationWithStats): MarkerOverlayEntry => {
       const tier = tierOf(loc.recordCount);
       const el = document.createElement("div");
       el.className = "gj-marker";
       el.dataset.tier = tier;
-      el.dataset.selected = loc.id === selected?.id ? "true" : "false";
+      el.dataset.selected = loc.id === selectedIdRef.current ? "true" : "false";
       const chipHtml =
         loc.recordCount > 0
           ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
@@ -280,70 +295,143 @@ export default function KakaoMap({
       return { id: loc.id, el, overlay, onClick };
     };
 
-    const rendered = new Map<string, MarkerOverlayEntry>();
+    const pool = new Map<string, MarkerOverlayEntry>(); // 생성된 모든 overlay (재사용)
+    const onMap = new Set<string>(); // 현재 map 에 attach 된 id
+    let last = { sw: NaN, sn: NaN, ne: NaN, nn: NaN }; // 직전 bounds (동일하면 skip)
 
-    const renderVisible = () => {
+    const computeAndRender = () => {
+      tStart("[map] bounds update");
       const bounds = map.getBounds();
-      if (!bounds) return;
+      if (!bounds) {
+        tEnd("[map] bounds update");
+        return;
+      }
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const swLat = sw.getLat();
+      const swLng = sw.getLng();
+      const neLat = ne.getLat();
+      const neLng = ne.getLng();
+      tEnd("[map] bounds update");
 
-      // 1) 현재 bounds 안의 location id 집합 (cap)
+      // memoization — bounds 가 직전과 같으면 재계산 불필요
+      if (
+        swLat === last.sw &&
+        swLng === last.sn &&
+        neLat === last.ne &&
+        neLng === last.nn
+      ) {
+        return;
+      }
+      last = { sw: swLat, sn: swLng, ne: neLat, nn: neLng };
+
+      // 1) viewport 안의 대상 id (수치 비교, cap)
+      tStart("[map] visible filtering");
       const targetIds = new Set<string>();
-      for (const loc of locations) {
-        if (bounds.contain(new kakao.maps.LatLng(loc.lat, loc.lng))) {
+      for (let i = 0; i < locations.length; i++) {
+        const loc = locations[i];
+        if (
+          loc.lat >= swLat &&
+          loc.lat <= neLat &&
+          loc.lng >= swLng &&
+          loc.lng <= neLng
+        ) {
           targetIds.add(loc.id);
           if (targetIds.size >= MAX_VISIBLE) break;
         }
       }
+      tEnd("[map] visible filtering");
 
-      // 2) 화면 밖으로 나간 것 제거
-      for (const [id, entry] of rendered) {
+      // 2) overlay attach/detach (재사용)
+      tStart("[map] overlay render");
+      let created = 0;
+      // 화면 밖으로 나간 것 → detach (pool 에 보존, setMap(null) 1회만)
+      for (const id of onMap) {
         if (!targetIds.has(id)) {
+          pool.get(id)?.overlay.setMap(null);
+          onMap.delete(id);
+        }
+      }
+      // 새로 들어온 것 → pool 재사용 or 생성 후 attach
+      for (let i = 0; i < locations.length; i++) {
+        const loc = locations[i];
+        if (!targetIds.has(loc.id) || onMap.has(loc.id)) continue;
+        let entry = pool.get(loc.id);
+        if (!entry) {
+          entry = makeEntry(loc);
+          pool.set(loc.id, entry);
+          created++;
+        }
+        entry.el.dataset.selected =
+          loc.id === selectedIdRef.current ? "true" : "false";
+        entry.overlay.setMap(map);
+        onMap.add(loc.id);
+      }
+      tEnd("[map] overlay render");
+
+      // pool 상한 초과 시 화면 밖 항목부터 폐기 (메모리 누수 방지)
+      if (pool.size > POOL_MAX) {
+        for (const [id, entry] of pool) {
+          if (pool.size <= POOL_MAX) break;
+          if (onMap.has(id)) continue;
           entry.overlay.setMap(null);
           entry.el.removeEventListener("click", entry.onClick);
-          rendered.delete(id);
+          pool.delete(id);
         }
       }
 
-      // 3) 새로 들어온 것 추가
-      for (const loc of locations) {
-        if (targetIds.has(loc.id) && !rendered.has(loc.id)) {
-          const entry = makeEntry(loc);
-          entry.overlay.setMap(map);
-          rendered.set(loc.id, entry);
-        }
+      markerOverlaysRef.current = Array.from(onMap, (id) => pool.get(id)!);
+      if (PERF) {
+        console.log(
+          `[map] total=${locations.length} onMap=${onMap.size} pool=${pool.size} created+=${created}` +
+            (targetIds.size >= MAX_VISIBLE ? ` (capped ${MAX_VISIBLE})` : ""),
+        );
       }
-
-      markerOverlaysRef.current = Array.from(rendered.values());
-      console.log(
-        `[map] total=${locations.length} rendered=${rendered.size}` +
-          (targetIds.size >= MAX_VISIBLE ? ` (capped ${MAX_VISIBLE})` : ""),
-      );
     };
 
-    // 첫 마커 중심 1회 (사용자 위치 없을 때만) → 이후 렌더
+    // idle → debounce → rAF (pan/zoom 중 연속 재계산·레이아웃 방지)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let rafId = 0;
+    const schedule = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          computeAndRender();
+        });
+      }, 120);
+    };
+
+    // 첫 마커 중심 1회 (사용자 위치 없을 때만) → 초기 1회는 즉시 렌더
     if (locations[0] && !myPosRef.current) {
       map.setCenter(new kakao.maps.LatLng(locations[0].lat, locations[0].lng));
     }
-    renderVisible();
+    computeAndRender();
 
-    const onIdle = () => renderVisible();
+    const onIdle = () => schedule();
     kakao.maps.event.addListener(map, "idle", onIdle);
 
     return () => {
       kakao.maps.event.removeListener(map, "idle", onIdle);
-      for (const entry of rendered.values()) {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (rafId) cancelAnimationFrame(rafId);
+      for (const entry of pool.values()) {
         entry.overlay.setMap(null);
         entry.el.removeEventListener("click", entry.onClick);
       }
-      rendered.clear();
+      pool.clear();
+      onMap.clear();
       markerOverlaysRef.current = [];
     };
-    // selected는 의도적으로 deps에서 제외 — 마커 재생성 트리거하면 안 됨
+    // selected 는 deps 에서 제외 — 마커 재생성 트리거 금지 (selectedIdRef + Effect C 로 동기화)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, locations]);
 
   // === Effect C: selected → DOM data-selected 동기화 =========================
   useEffect(() => {
+    selectedIdRef.current = selected?.id ?? null;
     markerOverlaysRef.current.forEach(({ id, el }) => {
       el.dataset.selected = id === selected?.id ? "true" : "false";
     });
@@ -427,7 +515,11 @@ export default function KakaoMap({
     );
   }
 
-  const totalChallenges = locations.reduce((a, l) => a + l.recordCount, 0);
+  // locations 변경 시에만 합산 (selected/locateState 등 잦은 리렌더에서 재계산 방지)
+  const totalChallenges = useMemo(
+    () => locations.reduce((a, l) => a + l.recordCount, 0),
+    [locations],
+  );
   const distance =
     selected && myPosRef.current
       ? distanceKm(myPosRef.current, { lat: selected.lat, lng: selected.lng })
