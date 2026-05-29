@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { LocationWithStats } from "@/lib/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { ClanStat, LocationWithStats } from "@/lib/types";
+
+const MY_CLAN_KEY = "gongsjang_clan"; // 체크인 시 저장한 소속 문파 id
+
+// 선택 장소의 점령 현황 (마커 클릭 시 on-demand 집계)
+type Occupation = {
+  recent: number; // 최근 14일 방문 수
+  share: number; // 우세 문파 점령률 %
+  guardian: string | null; // 이 구역 최다 방문자(관장)
+  lastDaysAgo: number | null; // 최근 활동(며칠 전)
+};
 
 declare global {
   interface Window {
@@ -139,9 +150,13 @@ const PERF = process.env.NODE_ENV !== "production";
 export default function KakaoMap({
   locations,
   stagesCount,
+  clanStats = [],
+  activity = [],
 }: {
   locations: LocationWithStats[];
   stagesCount?: number;
+  clanStats?: ClanStat[];
+  activity?: string[];
 }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +173,63 @@ export default function KakaoMap({
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [locateState, setLocateState] = useState<LocateState>("idle");
+  const [occupation, setOccupation] = useState<Occupation | null>(null);
+  const [myClanId, setMyClanId] = useState<string | null>(null);
+
+  // 내 소속 문파(체크인 시 저장) — 클라이언트에서만
+  useEffect(() => {
+    setMyClanId(localStorage.getItem(MY_CLAN_KEY));
+  }, []);
+
+  // 선택 장소의 점령 현황을 on-demand 집계 (최근 14일 방문). 초기 로딩엔 영향 없음.
+  useEffect(() => {
+    if (!selected) {
+      setOccupation(null);
+      return;
+    }
+    let cancelled = false;
+    const since = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+    const supabase = createSupabaseBrowserClient();
+    supabase
+      .from("visits")
+      .select("clan_id, nickname, visited_on")
+      .eq("location_id", selected.id)
+      .gte("visited_on", since)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const rows = (data as { clan_id: string; nickname: string; visited_on: string }[]) ?? [];
+        if (rows.length === 0) {
+          setOccupation({ recent: 0, share: 0, guardian: null, lastDaysAgo: null });
+          return;
+        }
+        const byClan = new Map<string, number>();
+        const byNick = new Map<string, number>();
+        let last = "";
+        for (const r of rows) {
+          byClan.set(r.clan_id, (byClan.get(r.clan_id) ?? 0) + 1);
+          byNick.set(r.nickname, (byNick.get(r.nickname) ?? 0) + 1);
+          if (r.visited_on > last) last = r.visited_on;
+        }
+        const topClan = [...byClan.values()].sort((a, b) => b - a)[0] ?? 0;
+        const guardian = [...byNick.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        const lastDaysAgo = Math.round((Date.now() - new Date(`${last}T00:00:00Z`).getTime()) / 86_400_000);
+        setOccupation({
+          recent: rows.length,
+          share: Math.round((topClan / rows.length) * 100),
+          guardian,
+          lastDaysAgo,
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
+
+  // 우세 문파 + 내 문파 순위 (clanStats 파생)
+  const topClan = clanStats[0] && clanStats[0].count > 0 ? clanStats[0] : null;
+  const totalOccupied = useMemo(() => clanStats.reduce((a, c) => a + c.count, 0), [clanStats]);
+  const myRankIdx = myClanId ? clanStats.findIndex((c) => c.id === myClanId) : -1;
+  const myClan = myRankIdx >= 0 ? clanStats[myRankIdx] : null;
 
   // === Effect A: 지도 초기화 (마운트 1회) =================================
   // - Kakao SDK 로드 → Map 생성 → 지도 click 리스너 → 현재 위치 1회 조회
@@ -268,6 +340,7 @@ export default function KakaoMap({
       el.className = "gj-marker";
       el.dataset.tier = tier;
       el.dataset.selected = loc.id === selectedIdRef.current ? "true" : "false";
+      el.dataset.occupied = loc.clan ? "true" : "false"; // 점령 마커 강조용
       // 점령 문파색 / 무주공산 회색 — 마커 CSS 변수만 덮어써 구조·감성 유지
       const clanColor = loc.clan?.color ?? VACANT_COLOR;
       el.style.setProperty("--tier-color", clanColor);
@@ -577,21 +650,46 @@ export default function KakaoMap({
             onClose={() => setSelected(null)}
           />
         ) : (
-          <div className="pointer-events-auto grid grid-cols-2 gap-2">
-            <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
-              <div className="arcade-label">STAGES</div>
-              <div className="font-display flex items-baseline whitespace-nowrap leading-none text-arcade-accent tabular-nums [font-size:clamp(0.95rem,5vw,1.25rem)] tracking-tight">
-                {(stagesCount ?? locations.length).toLocaleString("ko-KR")}
-                <span className="ml-1 text-[10px] text-zinc-400">곳</span>
+          <div className="pointer-events-auto space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
+                <div className="arcade-label">STAGES</div>
+                <div className="font-display flex items-baseline whitespace-nowrap leading-none text-arcade-accent tabular-nums [font-size:clamp(0.95rem,5vw,1.25rem)] tracking-tight">
+                  {(stagesCount ?? locations.length).toLocaleString("ko-KR")}
+                  <span className="ml-1 text-[10px] text-zinc-400">곳</span>
+                </div>
+              </div>
+              <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
+                <div className="arcade-label">CHALLENGES</div>
+                <div className="font-display text-xl leading-none text-arcade-neon tabular-nums">
+                  {totalChallenges}
+                  <span className="ml-1 text-[10px] text-zinc-400">회</span>
+                </div>
               </div>
             </div>
-            <div className="arcade-card bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
-              <div className="arcade-label">CHALLENGES</div>
-              <div className="font-display text-xl leading-none text-arcade-neon tabular-nums">
-                {totalChallenges}
-                <span className="ml-1 text-[10px] text-zinc-400">회</span>
+            {/* 우세 문파 + 전체 점령 + 내 문파 순위 */}
+            {topClan && (
+              <div className="arcade-card flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
+                <span className="arcade-label shrink-0">우세</span>
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ backgroundColor: topClan.color, boxShadow: `0 0 6px ${topClan.color}` }}
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate text-[11px]" style={{ color: topClan.color }}>
+                  {topClan.name}
+                </span>
+                <span className="font-display text-sm leading-none text-arcade-accent tabular-nums">
+                  {topClan.count}
+                  <span className="text-[9px] text-zinc-400">/{totalOccupied}곳</span>
+                </span>
+                {myClan && (
+                  <span className="ml-auto shrink-0 text-[9px] tracking-arcade text-zinc-400">
+                    내 문파 <span className="text-arcade-neon">{myRankIdx + 1}위</span>
+                  </span>
+                )}
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -613,8 +711,15 @@ export default function KakaoMap({
       {/* 안내 hint */}
       {!selected && mapReady && (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
-          <div className="arcade-card bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
-            ▼ 마커를 눌러 STAGE INFO 열기
+          <div className="arcade-card truncate bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
+            {activity.length ? (
+              <>
+                <span className="text-arcade-danger/90">▣ </span>
+                {activity[0]}
+              </>
+            ) : (
+              "▼ 마커를 눌러 STAGE INFO 열기"
+            )}
           </div>
         </div>
       )}
@@ -624,6 +729,7 @@ export default function KakaoMap({
         <StageSheet
           location={selected}
           distance={distance}
+          occupation={occupation}
           onClose={() => setSelected(null)}
           onChallenge={() => router.push(`/locations/${selected.id}`)}
         />
@@ -695,11 +801,13 @@ function SelectedHeader({
 function StageSheet({
   location,
   distance,
+  occupation,
   onClose,
   onChallenge,
 }: {
   location: LocationWithStats;
   distance: number | null;
+  occupation: Occupation | null;
   onClose: () => void;
   onChallenge: () => void;
 }) {
@@ -737,6 +845,35 @@ function StageSheet({
           </div>
           <span className="arcade-label shrink-0">지도 탭 ▸ 닫기</span>
         </div>
+
+        {/* 점령 현황 — 최근 14일 집계 (클릭 시 로드) */}
+        {occupation && occupation.recent > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-arcade-border bg-arcade-inset px-3 py-2 text-[10px] tracking-arcade text-zinc-400">
+            <span>
+              점령률{" "}
+              <span className="font-display text-sm text-arcade-accent tabular-nums">
+                {occupation.share}%
+              </span>
+            </span>
+            <span>
+              최근방문{" "}
+              <span className="font-display text-sm text-arcade-neon tabular-nums">
+                {occupation.recent}
+              </span>
+              회
+            </span>
+            {occupation.guardian && (
+              <span className="min-w-0 truncate">
+                관장 <span className="text-zinc-200">{occupation.guardian}</span>
+              </span>
+            )}
+            {occupation.lastDaysAgo != null && (
+              <span className="ml-auto">
+                {occupation.lastDaysAgo === 0 ? "오늘 활동" : `${occupation.lastDaysAgo}일 전 활동`}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="mb-3 grid grid-cols-3 gap-2">
           <div className="arcade-stat p-2">

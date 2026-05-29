@@ -263,6 +263,12 @@ body {
   box-shadow: 0 0 12px rgba(var(--tier-rgb), 0.55);
 }
 
+/* 점령된 구역 — 문파색 outline·glow 강조 (무주공산 회색은 기본 약하게 유지) */
+.gj-marker[data-occupied="true"] .gj-marker-icon {
+  border-color: var(--tier-color);
+  box-shadow: 0 0 11px rgba(var(--tier-rgb), 0.5);
+}
+
 /* SELECTED — 약간 확대 + 보더 선명 + 외곽 펄스 링 */
 .gj-marker[data-selected="true"] {
   transform: scale(1.18);

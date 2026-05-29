@@ -34,6 +34,15 @@ export type Location = {
 // 장소를 점령 중인 문파 (지도 마커 색·배지용 최소 정보)
 export type ClanBadge = { name: string; color: string };
 
+// 문파 점령 랭킹 (HUD/우세 문파용)
+export type ClanStat = {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  count: number;
+};
+
 export type LocationWithStats = Location & {
   recordCount: number;
   topPullup: { value: number; nickname: string } | null;

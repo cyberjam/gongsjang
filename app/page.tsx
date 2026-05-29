@@ -1,6 +1,6 @@
 import KakaoMap from "@/components/KakaoMap";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ClanBadge, Location, LocationWithStats, RecordRow } from "@/lib/types";
+import type { ClanBadge, ClanStat, Location, LocationWithStats, RecordRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -101,5 +101,46 @@ export default async function HomePage() {
     };
   });
 
-  return <KakaoMap locations={enriched} stagesCount={stagesCount ?? enriched.length} />;
+  // 문파 점령 랭킹 + 최근 점령 활동 (HUD/활동 피드용). 문파 수만큼만 가벼운 카운트.
+  const { data: clansRaw } = await supabase.from("clans").select("id, name, slug, color");
+  const clanList = (clansRaw as ClanStat[]) ?? [];
+  const clanStats: ClanStat[] = (
+    await Promise.all(
+      clanList.map(async (c) => {
+        const { count } = await supabase
+          .from("locations")
+          .select("*", { count: "exact", head: true })
+          .eq("clan_id", c.id);
+        return { ...c, count: count ?? 0 };
+      }),
+    )
+  ).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const { data: logRaw } = await supabase
+    .from("occupation_log")
+    .select("location_id, clan_id, prev_clan_id, occupied_at")
+    .order("occupied_at", { ascending: false })
+    .limit(6);
+  const logRows = (logRaw as { location_id: string; clan_id: string | null; prev_clan_id: string | null }[]) ?? [];
+  const clanName = new Map(clanList.map((c) => [c.id, c.name]));
+  let locName = new Map<string, string>();
+  const logLocIds = [...new Set(logRows.map((l) => l.location_id))];
+  if (logLocIds.length) {
+    const { data } = await supabase.from("locations").select("id, name").in("id", logLocIds);
+    locName = new Map(((data as { id: string; name: string }[]) ?? []).map((l) => [l.id, l.name]));
+  }
+  const activity = logRows.map((l) => {
+    const who = (l.clan_id && clanName.get(l.clan_id)) || "어느 세력";
+    const where = locName.get(l.location_id) ?? "한 구역";
+    return `${who}가 ${where}을 ${l.prev_clan_id ? "탈환" : "점령"}했다`;
+  });
+
+  return (
+    <KakaoMap
+      locations={enriched}
+      stagesCount={stagesCount ?? enriched.length}
+      clanStats={clanStats}
+      activity={activity}
+    />
+  );
 }
