@@ -93,3 +93,40 @@ language sql stable as $$
     power(sin(radians((lng - in_lng) / 2)), 2)
   )) <= in_meters;
 $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 문파(점령) 시스템 — Sprint 1: 지역 기반 문파 + 장소 점령 상태
+--   · 문파는 유저가 만들지 않고 지역마다 자동 존재 (region_key = 동/읍/면)
+--   · 각 location 은 현재 점령 문파(clan_id)를 가짐. null = 무주공산(회색)
+--   · Sprint 1 기본 점령 = 주소 지역 매칭. Sprint 2 에서 방문일 기반으로 대체.
+-- ─────────────────────────────────────────────────────────────
+
+create table if not exists clans (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  region_key text not null,   -- 주소에 포함되는 지역명(동/읍/면) — 소속·점령 매칭
+  color text not null,        -- 마커 색 (hex, arcade 네온 톤)
+  created_at timestamptz not null default now()
+);
+
+alter table locations add column if not exists clan_id uuid references clans(id) on delete set null;
+create index if not exists locations_clan_id_idx on locations (clan_id);
+
+alter table clans enable row level security;
+drop policy if exists "clans are viewable by everyone" on clans;
+create policy "clans are viewable by everyone"
+  on clans for select using (true);
+
+-- 시드 문파 (청주 생활권 예시 — 다크 네온 컬러로 arcade 톤 유지)
+insert into clans (name, slug, region_key, color) values
+  ('청룡문', 'cheongryong', '율량동', '#3fa9ff'),
+  ('흑월단', 'heugwol',     '복대동', '#ff3864'),
+  ('백호방', 'baekho',      '산남동', '#e8ecff')
+on conflict (slug) do nothing;
+
+-- Sprint 1 기본 점령: 주소에 문파 region_key 가 포함되면 그 문파가 해당 장소 점령
+update locations l
+set clan_id = c.id
+from clans c
+where l.clan_id is null and l.address like '%' || c.region_key || '%';

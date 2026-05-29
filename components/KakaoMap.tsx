@@ -81,6 +81,15 @@ function loadKakaoScript(appKey: string): Promise<void> {
   });
 }
 
+// 무주공산(점령 안 된 장소) 기본색 — arcade-muted 회색
+const VACANT_COLOR = "#888fa0";
+// "#rrggbb" → "r, g, b" (마커 CSS 변수 --tier-rgb 용). 실패 시 회색.
+function hexToRgb(hex: string): string {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return "136, 143, 160";
+  return `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}`;
+}
+
 function tierOf(count: number) {
   if (count >= 3) return "hot" as const;
   if (count > 0) return "active" as const;
@@ -259,6 +268,10 @@ export default function KakaoMap({
       el.className = "gj-marker";
       el.dataset.tier = tier;
       el.dataset.selected = loc.id === selectedIdRef.current ? "true" : "false";
+      // 점령 문파색 / 무주공산 회색 — 마커 CSS 변수만 덮어써 구조·감성 유지
+      const clanColor = loc.clan?.color ?? VACANT_COLOR;
+      el.style.setProperty("--tier-color", clanColor);
+      el.style.setProperty("--tier-rgb", hexToRgb(clanColor));
       const chipHtml =
         loc.recordCount > 0
           ? `<span class="gj-marker-chip" aria-label="기록 ${loc.recordCount}회">★${loc.recordCount}</span>`
