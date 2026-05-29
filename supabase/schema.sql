@@ -130,3 +130,112 @@ update locations l
 set clan_id = c.id
 from clans c
 where l.clan_id is null and l.address like '%' || c.region_key || '%';
+
+-- ─────────────────────────────────────────────────────────────
+-- 점령 엔진 — Sprint 2: 방문 기록 + 최근 14일 방문 합산 점령 + 변경 로그
+--   · 점령 기준 = 최근 14일 (장소,문파)별 방문 수. 1위 문파가 점령.
+--   · 같은 장소·같은 사람·같은 날 = 1회만 (허위·중복 방지)
+--   · 점령자 바뀌면 occupation_log 에 이력. 시간 지나면 역전 가능.
+--   · QR/사진/GPS 인증은 후속 — 여기선 데이터 모델 + 집계 엔진만.
+-- ─────────────────────────────────────────────────────────────
+
+create table if not exists visits (
+  id uuid primary key default gen_random_uuid(),
+  location_id uuid not null references locations(id) on delete cascade,
+  clan_id uuid not null references clans(id),         -- 이 방문이 기여하는 문파(방문자 소속)
+  nickname text not null check (char_length(nickname) between 1 and 12),
+  visited_on date not null default ((now() at time zone 'Asia/Seoul')::date),
+  created_at timestamptz not null default now()
+);
+-- 같은 장소·같은 사람·같은 날 1회만
+create unique index if not exists visits_once_per_day
+  on visits (location_id, nickname, visited_on);
+-- 최근 N일 집계용
+create index if not exists visits_location_day_idx
+  on visits (location_id, visited_on);
+
+alter table visits enable row level security;
+drop policy if exists "visits are viewable by everyone" on visits;
+create policy "visits are viewable by everyone" on visits for select using (true);
+drop policy if exists "anyone can insert visits" on visits;
+create policy "anyone can insert visits" on visits for insert with check (true);
+
+-- 점령 변경 이력
+create table if not exists occupation_log (
+  id uuid primary key default gen_random_uuid(),
+  location_id uuid not null references locations(id) on delete cascade,
+  clan_id uuid references clans(id),        -- 새 점령 문파 (null = 무주공산화)
+  prev_clan_id uuid references clans(id),    -- 직전 점령 문파
+  occupied_at timestamptz not null default now()
+);
+create index if not exists occupation_log_location_idx
+  on occupation_log (location_id, occupied_at desc);
+
+alter table occupation_log enable row level security;
+drop policy if exists "occupation_log is viewable by everyone" on occupation_log;
+create policy "occupation_log is viewable by everyone" on occupation_log for select using (true);
+
+-- 한 장소의 점령자 재계산 = 최근 14일 방문 1위 문파. 바뀌면 로그.
+-- SECURITY DEFINER: 익명 visit insert 트리거가 RLS 우회해 locations/log 갱신.
+create or replace function recompute_location_occupation(in_location uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  winner uuid;
+  current_owner uuid;
+begin
+  select clan_id into winner
+  from visits
+  where location_id = in_location
+    and visited_on >= (current_date - interval '14 days')
+  group by clan_id
+  order by count(*) desc, clan_id
+  limit 1;
+
+  select clan_id into current_owner from locations where id = in_location;
+
+  if winner is distinct from current_owner then
+    update locations set clan_id = winner where id = in_location;
+    insert into occupation_log (location_id, clan_id, prev_clan_id)
+    values (in_location, winner, current_owner);
+  end if;
+end;
+$$;
+
+-- 전체 재계산 (방문이 14일 밖으로 빠져 점령이 식는 경우 — cron/Action 에서 주기 호출)
+create or replace function recompute_all_occupation()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare r record;
+begin
+  for r in select id from locations loop
+    perform recompute_location_occupation(r.id);
+  end loop;
+end;
+$$;
+
+-- 방문 insert 시 해당 장소 점령 재계산
+create or replace function on_visit_recompute()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform recompute_location_occupation(new.location_id);
+  return new;
+end;
+$$;
+
+drop trigger if exists visits_recompute on visits;
+create trigger visits_recompute
+  after insert on visits
+  for each row execute function on_visit_recompute();
+
+-- TODO(Sprint3+): 방문 인증(QR/사진/GPS·시간) · 방문자 소속 문파 자동 판정 · 점령 기여도
