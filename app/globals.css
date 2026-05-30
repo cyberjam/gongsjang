@@ -269,6 +269,19 @@ body {
   box-shadow: 0 0 11px rgba(var(--tier-rgb), 0.5);
 }
 
+/* 세력권 glow — 문파 점령지 중심 광역 표시 (마커 아래, 클릭 통과) */
+.gj-territory {
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--clan) 26%, transparent) 0%,
+    color-mix(in srgb, var(--clan) 10%, transparent) 45%,
+    transparent 72%
+  );
+  mix-blend-mode: screen;
+}
+
 /* SELECTED — 약간 확대 + 보더 선명 + 외곽 펄스 링 */
 .gj-marker[data-selected="true"] {
   transform: scale(1.18);

@@ -16,6 +16,8 @@ type Occupation = {
   share: number; // 우세 문파 점령률 %
   guardian: string | null; // 이 구역 최다 방문자(관장)
   lastDaysAgo: number | null; // 최근 활동(며칠 전)
+  since: string | null; // 점령 시작일
+  takeovers: number; // 탈환 횟수(이전 점령자가 있던 점령 변경)
 };
 
 declare global {
@@ -97,6 +99,26 @@ function loadKakaoScript(appKey: string): Promise<void> {
 
 // 무주공산(점령 안 된 장소) 기본색 — arcade-muted 회색
 const VACANT_COLOR = "#888fa0";
+
+// 연속 방문일 (최신일 기준 역산, 오늘/어제 끊기면 0)
+function streakOf(daySet: Set<string>): number {
+  if (daySet.size === 0) return 0;
+  const dayMs = 86_400_000;
+  const epochs = [...daySet].map((s) => new Date(`${s}T00:00:00Z`).getTime());
+  const latest = Math.max(...epochs);
+  const today = new Date(
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" }) + "T00:00:00Z",
+  ).getTime();
+  if (today - latest > dayMs) return 0;
+  let streak = 0;
+  let cur = latest;
+  while (daySet.has(new Date(cur).toISOString().slice(0, 10))) {
+    streak++;
+    cur -= dayMs;
+  }
+  return streak;
+}
+
 // "#rrggbb" → "r, g, b" (마커 CSS 변수 --tier-rgb 용). 실패 시 회색.
 function hexToRgb(hex: string): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
@@ -179,14 +201,21 @@ export default function KakaoMap({
   const [occupation, setOccupation] = useState<Occupation | null>(null);
   const [myClanId, setMyClanId] = useState<string | null>(null);
   const [myNick, setMyNick] = useState<string | null>(null);
-  const [myInfo, setMyInfo] = useState<{ title: string; level: number } | null>(null);
+  const [myStats, setMyStats] = useState<{
+    title: string;
+    level: number;
+    places: number;
+    streak: number;
+    visits: number;
+  } | null>(null);
+  const [tickerIdx, setTickerIdx] = useState(0);
 
   // 내 소속 문파(체크인 시 저장) — 클라이언트에서만
   useEffect(() => {
     setMyClanId(localStorage.getItem(MY_CLAN_KEY));
   }, []);
 
-  // 내 닉네임 → 내 방문일 기반 칭호/계급 (프로필 버튼용). 초기 렌더 비차단.
+  // 내 닉네임 → 방문일 기반 칭호/계급 + 미션 판정 지표. 초기 렌더 비차단(1쿼리).
   useEffect(() => {
     const nick = localStorage.getItem(MY_NICK_KEY);
     setMyNick(nick);
@@ -194,17 +223,69 @@ export default function KakaoMap({
     let cancelled = false;
     createSupabaseBrowserClient()
       .from("visits")
-      .select("visited_on")
+      .select("visited_on, location_id")
       .eq("nickname", nick)
       .then(({ data }) => {
         if (cancelled) return;
-        const days = new Set((data as { visited_on: string }[] | null)?.map((v) => v.visited_on) ?? []).size;
-        setMyInfo({ title: titleForDays(days), level: Math.floor(days / 5) + 1 });
+        const rows = (data as { visited_on: string; location_id: string }[] | null) ?? [];
+        const daySet = new Set(rows.map((v) => v.visited_on));
+        const days = daySet.size;
+        setMyStats({
+          title: titleForDays(days),
+          level: Math.floor(days / 5) + 1,
+          places: new Set(rows.map((v) => v.location_id)).size,
+          streak: streakOf(daySet),
+          visits: rows.length,
+        });
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // 실시간 활동 피드 — 천천히 순환
+  useEffect(() => {
+    if (activity.length < 2) return;
+    const t = setInterval(() => setTickerIdx((i) => (i + 1) % activity.length), 3500);
+    return () => clearInterval(t);
+  }, [activity.length]);
+
+  // 세력권 glow 레이어 — 문파별 점령지 중심에 부드러운 광역 glow.
+  // 마커와 별개로 항상 표시(culling X) → 줌아웃·빈 지도에서도 세력 분포 체감. 문파 수만큼만.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.kakao) return;
+    const { kakao } = window;
+    const map = mapRef.current;
+    const agg = new Map<string, { color: string; sLat: number; sLng: number; n: number }>();
+    for (const loc of locations) {
+      if (!loc.clan) continue;
+      const k = loc.clan.name;
+      const e = agg.get(k) ?? { color: loc.clan.color, sLat: 0, sLng: 0, n: 0 };
+      e.sLat += loc.lat;
+      e.sLng += loc.lng;
+      e.n += 1;
+      agg.set(k, e);
+    }
+    const overlays: any[] = [];
+    for (const e of agg.values()) {
+      const size = Math.min(70 + e.n * 6, 240);
+      const el = document.createElement("div");
+      el.className = "gj-territory";
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.setProperty("--clan", e.color);
+      const ov = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(e.sLat / e.n, e.sLng / e.n),
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        zIndex: 0,
+      });
+      ov.setMap(map);
+      overlays.push(ov);
+    }
+    return () => overlays.forEach((o) => o.setMap(null));
+  }, [mapReady, locations]);
 
   // 선택 장소의 점령 현황을 on-demand 집계 (최근 14일 방문). 초기 로딩엔 영향 없음.
   useEffect(() => {
@@ -213,38 +294,50 @@ export default function KakaoMap({
       return;
     }
     let cancelled = false;
-    const since = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+    const sinceDay = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
     const supabase = createSupabaseBrowserClient();
-    supabase
-      .from("visits")
-      .select("clan_id, nickname, visited_on")
-      .eq("location_id", selected.id)
-      .gte("visited_on", since)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const rows = (data as { clan_id: string; nickname: string; visited_on: string }[]) ?? [];
-        if (rows.length === 0) {
-          setOccupation({ recent: 0, share: 0, guardian: null, lastDaysAgo: null });
-          return;
-        }
-        const byClan = new Map<string, number>();
-        const byNick = new Map<string, number>();
-        let last = "";
-        for (const r of rows) {
-          byClan.set(r.clan_id, (byClan.get(r.clan_id) ?? 0) + 1);
-          byNick.set(r.nickname, (byNick.get(r.nickname) ?? 0) + 1);
-          if (r.visited_on > last) last = r.visited_on;
-        }
-        const topClan = [...byClan.values()].sort((a, b) => b - a)[0] ?? 0;
-        const guardian = [...byNick.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-        const lastDaysAgo = Math.round((Date.now() - new Date(`${last}T00:00:00Z`).getTime()) / 86_400_000);
-        setOccupation({
-          recent: rows.length,
-          share: Math.round((topClan / rows.length) * 100),
-          guardian,
-          lastDaysAgo,
-        });
+    const sel = selected.id;
+    Promise.all([
+      supabase
+        .from("visits")
+        .select("clan_id, nickname, visited_on")
+        .eq("location_id", sel)
+        .gte("visited_on", sinceDay),
+      supabase
+        .from("occupation_log")
+        .select("occupied_at, prev_clan_id")
+        .eq("location_id", sel)
+        .order("occupied_at", { ascending: false }),
+    ]).then(([v, l]) => {
+      if (cancelled) return;
+      const rows = (v.data as { clan_id: string; nickname: string; visited_on: string }[]) ?? [];
+      const log = (l.data as { occupied_at: string; prev_clan_id: string | null }[]) ?? [];
+      const since = log[0]?.occupied_at?.slice(0, 10) ?? null;
+      const takeovers = log.filter((x) => x.prev_clan_id).length;
+      if (rows.length === 0) {
+        setOccupation({ recent: 0, share: 0, guardian: null, lastDaysAgo: null, since, takeovers });
+        return;
+      }
+      const byClan = new Map<string, number>();
+      const byNick = new Map<string, number>();
+      let last = "";
+      for (const r of rows) {
+        byClan.set(r.clan_id, (byClan.get(r.clan_id) ?? 0) + 1);
+        byNick.set(r.nickname, (byNick.get(r.nickname) ?? 0) + 1);
+        if (r.visited_on > last) last = r.visited_on;
+      }
+      const topClan = [...byClan.values()].sort((a, b) => b - a)[0] ?? 0;
+      const guardian = [...byNick.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const lastDaysAgo = Math.round((Date.now() - new Date(`${last}T00:00:00Z`).getTime()) / 86_400_000);
+      setOccupation({
+        recent: rows.length,
+        share: Math.round((topClan / rows.length) * 100),
+        guardian,
+        lastDaysAgo,
+        since,
+        takeovers,
       });
+    });
     return () => {
       cancelled = true;
     };
@@ -692,29 +785,35 @@ export default function KakaoMap({
                 </div>
               </div>
             </div>
-            {/* 우세 문파 + 전체 점령 + 내 문파 순위 */}
-            {topClan && (
-              <div className="arcade-card flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
-                <span className="arcade-label shrink-0">우세</span>
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                  style={{ backgroundColor: topClan.color, boxShadow: `0 0 6px ${topClan.color}` }}
-                  aria-hidden
-                />
-                <span className="min-w-0 truncate text-[11px]" style={{ color: topClan.color }}>
-                  {topClan.name}
-                </span>
-                <span className="font-display text-sm leading-none text-arcade-accent tabular-nums">
-                  {topClan.count}
-                  <span className="text-[9px] text-zinc-400">/{totalOccupied}곳</span>
-                </span>
-                {myClan && (
-                  <span className="ml-auto shrink-0 text-[9px] tracking-arcade text-zinc-400">
-                    내 문파 <span className="text-arcade-neon">{myRankIdx + 1}위</span>
+            {/* 내 정보 — 현재 문파 · 계급 · 내 문파 점령 수 */}
+            <div className="arcade-card flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-arcade-panel/85 px-3 py-1.5 backdrop-blur">
+              {myClan ? (
+                <>
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                    style={{ backgroundColor: myClan.color, boxShadow: `0 0 6px ${myClan.color}` }}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 truncate text-[11px]" style={{ color: myClan.color }}>
+                    {myClan.name}
                   </span>
-                )}
-              </div>
-            )}
+                  <span className="shrink-0 text-[10px] text-arcade-neon">
+                    {myStats?.title ?? "수련생"} Lv{myStats?.level ?? 1}
+                  </span>
+                  <span className="ml-auto shrink-0 text-[9px] tracking-arcade text-zinc-400">
+                    점령{" "}
+                    <span className="font-display text-arcade-accent tabular-nums">
+                      {myClan.count}
+                    </span>{" "}
+                    · {myRankIdx + 1}위
+                  </span>
+                </>
+              ) : (
+                <span className="text-[10px] tracking-arcade text-zinc-400">
+                  미입단 — 철봉을 방문해 문파에 입단하라
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -742,25 +841,78 @@ export default function KakaoMap({
         >
           <span className="arcade-label shrink-0">내</span>
           <span className="min-w-0 truncate text-[11px] text-arcade-neon">
-            {myInfo?.title ?? myNick}
+            {myStats?.title ?? myNick}
           </span>
-          {myInfo && (
+          {myStats && (
             <span className="font-display shrink-0 text-[11px] leading-none text-zinc-400 tabular-nums">
-              LV{myInfo.level}
+              LV{myStats.level}
             </span>
           )}
           <span className="shrink-0 text-[10px] text-zinc-500">▸</span>
         </Link>
       )}
 
-      {/* 안내 hint */}
+      {/* DOMINANT — 현재 우세 문파 / 점령률 / 최근 활동 */}
+      {!selected && topClan && (
+        <div className="pointer-events-none absolute right-3 top-[180px] z-20 w-[40vw] max-w-[160px]">
+          <div className="arcade-card bg-arcade-panel/85 px-2.5 py-2 backdrop-blur">
+            <div className="arcade-label-wide" style={{ color: topClan.color }}>
+              DOMINANT
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                style={{ backgroundColor: topClan.color, boxShadow: `0 0 6px ${topClan.color}` }}
+                aria-hidden
+              />
+              <span className="truncate text-xs" style={{ color: topClan.color }}>
+                {topClan.name}
+              </span>
+            </div>
+            <div className="mt-1 text-[9px] tracking-arcade text-zinc-500">
+              점령률{" "}
+              <span className="font-display text-sm text-arcade-accent tabular-nums">
+                {totalOccupied ? Math.round((topClan.count / totalOccupied) * 100) : 0}%
+              </span>
+            </div>
+            {activity[0] && (
+              <div className="mt-1 border-t border-arcade-border pt-1 text-[9px] leading-tight text-zinc-400">
+                <span className="text-arcade-danger/90">최근 </span>
+                <span className="line-clamp-2">{activity[0]}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* NEXT MISSION + 실시간 활동 피드 */}
       {!selected && mapReady && (
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20">
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 space-y-2">
+          {!(
+            (myStats?.places ?? 0) >= 1 &&
+            (myStats?.visits ?? 0) >= 1 &&
+            (myStats?.streak ?? 0) >= 3
+          ) && (
+            <div className="arcade-card bg-arcade-panel/85 px-3 py-2 backdrop-blur">
+              <div className="arcade-label-wide text-arcade-accent">NEXT MISSION</div>
+              <ul className="mt-1 space-y-0.5 text-[10px] tracking-arcade">
+                {[
+                  { ok: (myStats?.places ?? 0) >= 1, t: "장소 1곳 방문" },
+                  { ok: (myStats?.visits ?? 0) >= 1, t: "첫 점령 참여" },
+                  { ok: (myStats?.streak ?? 0) >= 3, t: "연속 방문 3일" },
+                ].map((m, i) => (
+                  <li key={i} className={m.ok ? "text-arcade-neon" : "text-zinc-400"}>
+                    {m.ok ? "■" : "□"} {m.t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="arcade-card truncate bg-arcade-panel/80 px-3 py-2 text-center text-[11px] tracking-arcade text-zinc-400 backdrop-blur">
             {activity.length ? (
               <>
                 <span className="text-arcade-danger/90">▣ </span>
-                {activity[0]}
+                {activity[tickerIdx % activity.length]}
               </>
             ) : (
               "▼ 마커를 눌러 STAGE INFO 열기"
@@ -891,8 +1043,8 @@ function StageSheet({
           <span className="arcade-label shrink-0">지도 탭 ▸ 닫기</span>
         </div>
 
-        {/* 점령 현황 — 최근 14일 집계 (클릭 시 로드) */}
-        {occupation && occupation.recent > 0 && (
+        {/* 점령 현황 — 최근 14일 + 점령 이력 (클릭 시 로드) */}
+        {occupation && (occupation.recent > 0 || occupation.since) && (
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-arcade-border bg-arcade-inset px-3 py-2 text-[10px] tracking-arcade text-zinc-400">
             <span>
               점령률{" "}
@@ -912,9 +1064,18 @@ function StageSheet({
                 관장 <span className="text-zinc-200">{occupation.guardian}</span>
               </span>
             )}
-            {occupation.lastDaysAgo != null && (
-              <span className="ml-auto">
-                {occupation.lastDaysAgo === 0 ? "오늘 활동" : `${occupation.lastDaysAgo}일 전 활동`}
+            <span>
+              탈환{" "}
+              <span className="font-display text-sm text-arcade-danger tabular-nums">
+                {occupation.takeovers}
+              </span>
+              회
+            </span>
+            {occupation.since && (
+              <span className="w-full text-zinc-500">
+                점령 시작 <span className="text-zinc-300">{occupation.since}</span>
+                {occupation.lastDaysAgo != null &&
+                  ` · ${occupation.lastDaysAgo === 0 ? "오늘 활동" : `${occupation.lastDaysAgo}일 전 활동`}`}
               </span>
             )}
           </div>
