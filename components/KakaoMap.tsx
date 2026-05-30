@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { titleForDays } from "@/lib/titles";
 import type { ClanStat, LocationWithStats } from "@/lib/types";
 
 const MY_CLAN_KEY = "gongsjang_clan"; // 체크인 시 저장한 소속 문파 id
+const MY_NICK_KEY = "gongsjang_nickname"; // 체크인/기록 시 저장한 닉네임
 
 // 선택 장소의 점령 현황 (마커 클릭 시 on-demand 집계)
 type Occupation = {
@@ -175,10 +178,32 @@ export default function KakaoMap({
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [occupation, setOccupation] = useState<Occupation | null>(null);
   const [myClanId, setMyClanId] = useState<string | null>(null);
+  const [myNick, setMyNick] = useState<string | null>(null);
+  const [myInfo, setMyInfo] = useState<{ title: string; level: number } | null>(null);
 
   // 내 소속 문파(체크인 시 저장) — 클라이언트에서만
   useEffect(() => {
     setMyClanId(localStorage.getItem(MY_CLAN_KEY));
+  }, []);
+
+  // 내 닉네임 → 내 방문일 기반 칭호/계급 (프로필 버튼용). 초기 렌더 비차단.
+  useEffect(() => {
+    const nick = localStorage.getItem(MY_NICK_KEY);
+    setMyNick(nick);
+    if (!nick) return;
+    let cancelled = false;
+    createSupabaseBrowserClient()
+      .from("visits")
+      .select("visited_on")
+      .eq("nickname", nick)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const days = new Set((data as { visited_on: string }[] | null)?.map((v) => v.visited_on) ?? []).size;
+        setMyInfo({ title: titleForDays(days), level: Math.floor(days / 5) + 1 });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 선택 장소의 점령 현황을 on-demand 집계 (최근 14일 방문). 초기 로딩엔 영향 없음.
@@ -707,6 +732,26 @@ export default function KakaoMap({
         </span>
         <span>{LOCATE_LABEL[locateState]}</span>
       </button>
+
+      {/* 프로필 진입 — 내 칭호/계급 (체크인한 적 있으면 노출) */}
+      {!selected && myNick && (
+        <Link
+          href={`/u/${encodeURIComponent(myNick)}`}
+          aria-label={`내 프로필 — ${myNick}`}
+          className="arcade-card-tap absolute right-3 top-[138px] z-20 flex max-w-[44vw] items-center gap-1.5 bg-arcade-panel/85 px-2.5 py-1.5 backdrop-blur"
+        >
+          <span className="arcade-label shrink-0">내</span>
+          <span className="min-w-0 truncate text-[11px] text-arcade-neon">
+            {myInfo?.title ?? myNick}
+          </span>
+          {myInfo && (
+            <span className="font-display shrink-0 text-[11px] leading-none text-zinc-400 tabular-nums">
+              LV{myInfo.level}
+            </span>
+          )}
+          <span className="shrink-0 text-[10px] text-zinc-500">▸</span>
+        </Link>
+      )}
 
       {/* 안내 hint */}
       {!selected && mapReady && (
