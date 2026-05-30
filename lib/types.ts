@@ -34,6 +34,23 @@ export type Location = {
 // 장소를 점령 중인 문파 (지도 마커 색·배지용 최소 정보)
 export type ClanBadge = { name: string; color: string };
 
+// 동네 문파 (자동 생성 세력)
+export type Clan = {
+  id: string;
+  name: string;
+  slug: string;
+  region_key: string; // 동/읍/면
+  color: string;
+};
+
+// 장소 점령 현황 (Stage 점령전 패널)
+export type StageOccupation = {
+  clan: ClanBadge | null; // null = 무주공산
+  warden: string | null; // 관장(기여 1위)
+  power: number; // 점령력(최근 30일 방문)
+  occupiedSince: string | null;
+};
+
 export type LocationWithStats = Location & {
   recordCount: number;
   topPullup: { value: number; nickname: string } | null;
