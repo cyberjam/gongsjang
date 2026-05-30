@@ -41,6 +41,14 @@ export default async function ProfilePage({
 
   const visits: any[] = visitsData ?? [];
 
+  // 소속 문파 = 가입(membership) 기준. 행 없으면 무소속.
+  const { data: memData } = await supabase
+    .from("clan_memberships")
+    .select("clan:clans(id, name, color)")
+    .eq("nickname", nick)
+    .maybeSingle();
+  const myClan = (memData as any)?.clan as { id: string; name: string; color: string } | null;
+
   // 집계
   const daySet = new Set<string>(visits.map((v) => v.visited_on));
   const totalDays = daySet.size;
@@ -143,17 +151,18 @@ export default async function ProfilePage({
           {nick}
         </h1>
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-          {soulClan ? (
-            <span
+          {myClan ? (
+            <Link
+              href={`/faction/${myClan.id}`}
               className="arcade-chip"
-              style={{ borderColor: soulClan.color, color: soulClan.color }}
+              style={{ borderColor: myClan.color, color: myClan.color }}
             >
-              {soulClan.name}
-            </span>
+              {myClan.name} ▸
+            </Link>
           ) : (
-            <span className="arcade-chip border-arcade-border text-zinc-500">
-              무소속
-            </span>
+            <Link href="/factions" className="arcade-chip border-arcade-border text-zinc-400">
+              무소속 · 문파 찾기 ▸
+            </Link>
           )}
           <span
             className="arcade-chip border-arcade-neon text-arcade-neon"
