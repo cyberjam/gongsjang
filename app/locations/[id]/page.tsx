@@ -5,6 +5,7 @@ import type { Location, RecordRow, RecordType } from "@/lib/types";
 import { RECORD_TYPES } from "@/lib/types";
 import RankingTabs from "@/components/RankingTabs";
 import VisitCheckIn from "@/components/VisitCheckIn";
+import StageFaction from "@/components/StageFaction";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,9 @@ export default async function LocationDetailPage({
           </p>
         )}
       </header>
+
+      {/* 점령전 현황 패널 */}
+      <StageFaction locationId={loc.id} />
 
       {/* 방문 인증 — 점령 게임 핵심 액션 */}
       <VisitCheckIn locationId={loc.id} lat={loc.lat} lng={loc.lng} clans={clans} />
