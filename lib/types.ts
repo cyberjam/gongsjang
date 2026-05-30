@@ -52,6 +52,13 @@ export type Clan = {
   color: string;
 };
 
+// 문파 가입 (닉네임당 1문파, 무소속 = 행 없음)
+export type ClanMembership = {
+  nickname: string;
+  clan_id: string;
+  joined_at: string;
+};
+
 // 장소 점령 현황 (Stage 점령전 패널)
 export type StageOccupation = {
   clan: ClanBadge | null; // null = 무주공산
