@@ -85,9 +85,9 @@ export default async function ProfilePage({
     topLocName = (loc as any)?.name ?? null;
   }
 
-  // 문주 = 소속 문파 최근 30일 방문 기여 1위
-  let isLeader = false;
-  if (soulClanId) {
+  // 문파 내 역할 = 소속 문파 최근 30일 방문 기여 순위 (관장=1위 / 핵심 멤버=top5 / 일반 단원)
+  let role: "관장" | "핵심 멤버" | "일반 단원" | null = null;
+  if (soulClanId && totalDays > 0) {
     const since = fmt(toEpoch(todayKST()) - 30 * dayMs);
     const { data: clanVisits } = await supabase
       .from("visits")
@@ -97,10 +97,15 @@ export default async function ProfilePage({
     const tally = new Map<string, number>();
     for (const r of (clanVisits as any[]) ?? [])
       tally.set(r.nickname, (tally.get(r.nickname) ?? 0) + 1);
-    const leader = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-    isLeader = leader === nick && totalDays > 0;
+    const ranked = [...tally.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map((e) => e[0]);
+    const rank = ranked.indexOf(nick);
+    role = rank === 0 ? "관장" : rank >= 1 && rank < 5 ? "핵심 멤버" : "일반 단원";
   }
 
+  const totalVisits = visits.length; // 총 방문 수(누적, 방문일과 별개)
+  const level = Math.floor(totalDays / 5) + 1; // 계급 — 방문일 기반 (5일당 1)
   const title = titleForDays(totalDays);
   const next = nextTitle(totalDays);
 
@@ -116,13 +121,21 @@ export default async function ProfilePage({
 
       {/* 헤더 — 닉네임 + 소속 문파 + 칭호 */}
       <header className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="arcade-chip border-arcade-border text-zinc-400">
             WARRIOR
           </span>
-          {isLeader && (
-            <span className="arcade-chip border-arcade-accent text-arcade-accent">
-              문주
+          {role && (
+            <span
+              className={`arcade-chip ${
+                role === "관장"
+                  ? "border-arcade-accent text-arcade-accent"
+                  : role === "핵심 멤버"
+                    ? "border-arcade-neon text-arcade-neon"
+                    : "border-arcade-border text-zinc-400"
+              }`}
+            >
+              {role}
             </span>
           )}
         </div>
@@ -154,6 +167,13 @@ export default async function ProfilePage({
       {/* 통계 */}
       <div className="grid grid-cols-2 gap-2">
         <div className="arcade-stat p-3">
+          <div className="arcade-label">총 방문 수</div>
+          <div className="font-display text-2xl leading-none text-arcade-accent tabular-nums">
+            {totalVisits}
+            <span className="ml-1 text-[10px] text-zinc-400">회</span>
+          </div>
+        </div>
+        <div className="arcade-stat p-3">
           <div className="arcade-label">총 방문일</div>
           <div className="font-display text-2xl leading-none text-arcade-accent tabular-nums">
             {totalDays}
@@ -179,6 +199,13 @@ export default async function ProfilePage({
           <div className="font-display text-2xl leading-none text-zinc-200 tabular-nums">
             {contribution}
             <span className="ml-1 text-[10px] text-zinc-400">회</span>
+          </div>
+        </div>
+        <div className="arcade-stat p-3">
+          <div className="arcade-label">계급</div>
+          <div className="font-display text-2xl leading-none text-arcade-neon tabular-nums">
+            <span className="text-[10px] text-zinc-400">LV </span>
+            {level}
           </div>
         </div>
       </div>
